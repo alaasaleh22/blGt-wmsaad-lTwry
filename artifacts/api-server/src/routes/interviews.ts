@@ -457,14 +457,14 @@ router.post("/interviews/:id/voice-turn", async (req, res): Promise<void> => {
 
     let voiceReply = "";
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta as {
+      const delta = chunk.choices?.[0]?.delta as {
         audio?: { transcript?: string; data?: string };
-      };
-      if (delta.audio?.transcript) {
+      } | undefined;
+      if (delta?.audio?.transcript) {
         voiceReply += delta.audio.transcript;
         send({ type: "transcript", data: delta.audio.transcript });
       }
-      if (delta.audio?.data) {
+      if (delta?.audio?.data) {
         send({ type: "audio", data: delta.audio.data });
       }
     }

@@ -1,1 +1,3 @@
 - [Emergency-report safety](emergency-report-safety.md) — do not imply a report is monitored or dispatched unless a real response operation exists.
+- [Preview JSX generics](preview-jsx-generics.md) — explicit JSX type arguments can pass production builds but fail the instrumented development preview.
+- [Audio stream events](audio-stream-events.md) — audio streams may include events without choices; handle them without interrupting playback or persistence.
