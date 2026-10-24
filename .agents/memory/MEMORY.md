@@ -2,3 +2,4 @@
 - [Preview JSX generics](preview-jsx-generics.md) — explicit JSX type arguments can pass production builds but fail the instrumented development preview.
 - [Audio streaming safeguards](audio-stream-events.md) — guard empty stream events and bound playback initialization so audio setup cannot block answer uploads.
 - [Realistic interviewer scope](realistic-interviewer-scope.md) — “شخص مقابلي” means a human-presenting interactive video interviewer, not only self-view or a voice indicator.
+- [Video readiness](video-readiness.md) — connected rooms and subscribed tracks do not prove a visible video; verify decoded frames and actual client codec support.

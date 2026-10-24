@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -9,6 +9,9 @@ import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } f
 import { getGetInterviewQueryKey, useCreateInterview, useFinishInterview, useGetInterview, useSubmitInterviewAnswer } from '@workspace/api-client-react';
 import type { InterviewDetail, InterviewEvaluation, InterviewInput, InterviewSession, InterviewTurn } from '@workspace/api-client-react';
 import { InterviewRoom } from '@/components/interview-room';
+import { AvatarEmbed } from '@/components/avatar-embed';
+import { AvatarStage } from '@/components/avatar-stage';
+import { useLiveAvatar } from '@/hooks/use-live-avatar';
 import { professionCatalog, trackLabels, findTrackForJob, stageFor, stageLabels } from '@/lib/professions';
 import { useVoiceRecorder, useVoiceStream } from '@workspace/integrations-openai-ai-react/audio';
 
@@ -139,19 +142,52 @@ function Session({ id }: { id: string }) {
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [recordingFailed, setRecordingFailed] = useState(false);
   const recorder = useVoiceRecorder();
-  const stream = useVoiceStream({
+  const avatar = useLiveAvatar(id);
+  const avatarRef = useRef(avatar);
+  avatarRef.current = avatar;
+  const readingQuestionRef = useRef(false);
+  const forwardedRef = useRef(false);
+  const [isReadingQuestion, setIsReadingQuestion] = useState(false);
+  const streamOptions = {
     workletPath: `${import.meta.env.BASE_URL}audio-playback-worklet.js`,
-    onUserTranscript: (text) => { setVoiceTranscript(text); setAnswer(text); },
-    onTranscript: (_, full) => setVoiceStatus(full),
+    onUserTranscript: (text: string) => { if (readingQuestionRef.current) return; setVoiceTranscript(text); setAnswer(text); },
+    onTranscript: (_: string, full: string) => setVoiceStatus(full),
+    onAudioChunk: (base64: string): boolean => {
+      const ok = avatarRef.current.sendAudio(base64);
+      if (ok) forwardedRef.current = true;
+      return ok;
+    },
     onComplete: () => {
+      if (forwardedRef.current) { forwardedRef.current = false; avatarRef.current.finishSpeech(); }
+      if (readingQuestionRef.current) { readingQuestionRef.current = false; setVoiceStatus(''); return; }
       setVoiceStatus('');
       setVoiceError('');
       setAnswer('');
       setVoiceTranscript('');
       void queryClient.invalidateQueries({ queryKey: getGetInterviewQueryKey(id) });
     },
-    onError: (error) => { setVoiceError(error.message); setVoiceStatus(''); },
-  });
+    onError: (error: Error) => { setVoiceError(error.message); setVoiceStatus(''); },
+  };
+  const stream = useVoiceStream(streamOptions as Parameters<typeof useVoiceStream>[0]);
+  const streamVoice = stream.streamVoiceResponse as (url: string, audioBlob?: Blob) => Promise<void>;
+  const readQuestion = async () => {
+    if (readingQuestionRef.current || recorder.state === 'recording') return;
+    avatarRef.current.interrupt();
+    readingQuestionRef.current = true; forwardedRef.current = false;
+    setIsReadingQuestion(true);
+    try {
+      await streamVoice(`/api/interviews/${encodeURIComponent(id)}/question-audio`);
+    } catch (error) {
+      setVoiceError(error instanceof Error ? error.message : 'تعذّر تشغيل السؤال.');
+    } finally {
+      readingQuestionRef.current = false;
+      setIsReadingQuestion(false);
+    }
+  };
+  const readQuestionRef = useRef(readQuestion);
+  readQuestionRef.current = readQuestion;
+  const sessionStatus = interview.data?.session.status;
+  useEffect(() => { if (sessionStatus === 'completed') avatarRef.current.stop(); }, [sessionStatus]);
   useEffect(() => { if (id) localStorage.setItem(LAST_SESSION_KEY, id); }, [id]);
   const session = interview.data?.session;
   const isEnglish = session?.language === 'en';
@@ -190,10 +226,12 @@ function Session({ id }: { id: string }) {
   const beginRecording = async () => {
     if (isVoiceProcessing || isStartingRecording || submitAnswer.isPending || finishInterview.isPending) return;
     setIsStartingRecording(true);
+    avatar.interrupt();
     setVoiceStatus('');
     setVoiceError(''); setRecordingFailed(false); setVoiceTranscript('');
     try {
       await recorder.startRecording();
+      avatar.setListening(true);
     } catch {
       setRecordingFailed(true);
       setVoiceError(isEnglish ? 'Microphone permission was denied or unavailable.' : 'تعذّر الوصول إلى الميكروفون. تحقق من الأذونات أو استخدم الكتابة.');
@@ -206,6 +244,7 @@ function Session({ id }: { id: string }) {
     setIsVoiceProcessing(true);
     try {
       const blob = await recorder.stopRecording();
+      avatar.setListening(false);
       if (!blob.size) throw new Error(isEnglish ? 'No audio was recorded.' : 'لم يتم تسجيل صوت.');
       setVoiceStatus(isEnglish ? 'Transcribing and preparing feedback…' : 'جارٍ تحويل الصوت وتجهيز الملاحظات…');
       await stream.streamVoiceResponse(`/api/interviews/${encodeURIComponent(id)}/voice-turn`, blob);
@@ -228,9 +267,9 @@ function Session({ id }: { id: string }) {
   const progress = Math.min(100, ((session.turnNumber - 1) / session.questionCount) * 100);
   const questionOrdinal = Math.min(session.turnNumber, session.questionCount);
   const stage = stageLabels[stageFor(questionOrdinal, session.questionCount)];
-  const roomPhase = recorder.state === 'recording' ? 'listening' : stream.playbackState === 'playing' ? 'speaking' : (isVoiceProcessing || isStartingRecording) ? 'processing' : 'idle';
+  const roomPhase = recorder.state === 'recording' ? 'listening' : (stream.playbackState === 'playing' || (avatar.ready && (avatar.speaking || avatar.agentState === 'talking'))) ? 'speaking' : (isVoiceProcessing || isStartingRecording) ? 'processing' : 'idle';
   const direction = isEnglish ? 'ltr' : 'rtl';
-  const mutationPending = submitAnswer.isPending || finishInterview.isPending || isVoiceProcessing || isStartingRecording || recorder.state === 'recording';
+  const mutationPending = submitAnswer.isPending || finishInterview.isPending || isVoiceProcessing || isStartingRecording || recorder.state === 'recording' || isReadingQuestion;
 
   return <div className="app-shell session-page" dir={direction}>
     <Header />
@@ -243,11 +282,11 @@ function Session({ id }: { id: string }) {
           <span className="stage-pill" data-testid="text-question-stage">{isEnglish ? stage.en : stage.ar}</span>
           <h2 data-testid="text-current-question">{currentQuestion || (isEnglish ? 'Your next question is being prepared…' : 'يجري إعداد السؤال التالي…')}</h2>
           <p className="coach-hint" data-testid="text-answer-hint">{copy.hint}</p>
-          {session.mode === 'voice' && <InterviewRoom english={isEnglish} phase={roomPhase} stageLabel={isEnglish ? stage.en : stage.ar} active={session.status === 'active'} />}
+          {session.mode === 'voice' && <InterviewRoom english={isEnglish} phase={roomPhase} stageLabel={isEnglish ? stage.en : stage.ar} active={session.status === 'active'} interviewer={<AvatarStage interviewId={id} avatar={avatar} english={isEnglish} onStart={(input) => void avatar.start(input, () => void readQuestionRef.current())} onReadQuestion={() => void readQuestion()} readDisabled={isReadingQuestion || isVoiceProcessing || recorder.state === 'recording' || !currentQuestion} />} />}
           {session.mode === 'voice' && <section className="voice-box" data-testid="panel-voice-practice">
             <div className="voice-head"><strong>{copy.voice}</strong><span className="voice-status" aria-live="polite" data-testid="status-voice">{recorder.state === 'recording' ? <><i className="status-dot live" />{isEnglish ? 'Recording' : 'يسجّل الآن'}</> : isStartingRecording ? (isEnglish ? 'Requesting microphone access…' : 'جارٍ طلب إذن الميكروفون…') : voiceStatus ? <><i className="status-dot" />{voiceStatus}</> : <><i className="status-dot" />{copy.permission}</>}</span></div>
             <div className="voice-controls">{recorder.state === 'recording'
-              ? <><button className="record-btn recording" onClick={() => void endRecording()} disabled={isVoiceProcessing} data-testid="button-stop-recording"><MicOff size={16} />{copy.stop}</button><button className="quiet-btn" onClick={() => { recorder.cancelRecording(); setVoiceStatus(''); }} disabled={isVoiceProcessing} data-testid="button-cancel-recording">{isEnglish ? 'Cancel recording' : 'إلغاء التسجيل'}</button></>
+              ? <><button className="record-btn recording" onClick={() => void endRecording()} disabled={isVoiceProcessing} data-testid="button-stop-recording"><MicOff size={16} />{copy.stop}</button><button className="quiet-btn" onClick={() => { recorder.cancelRecording(); avatar.setListening(false); setVoiceStatus(''); }} disabled={isVoiceProcessing} data-testid="button-cancel-recording">{isEnglish ? 'Cancel recording' : 'إلغاء التسجيل'}</button></>
               : <button className="record-btn" onClick={() => void beginRecording()} disabled={mutationPending} data-testid="button-start-recording"><Mic size={16} />{copy.start}</button>}
               <span className="subtle"><Volume2 size={14} style={{ verticalAlign: 'middle' }} /> {copy.fallback}</span>
             </div>
@@ -289,7 +328,7 @@ function Result({ session, turns, evaluation }: { session: InterviewSession; tur
 }
 
 function Router() {
-  return <RoutedErrorBoundary><Switch><Route path="/" component={Home} /><Route path="/session/:id" component={SessionRoute} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
+  return <RoutedErrorBoundary><Switch><Route path="/avatar-embed" component={AvatarEmbed} /><Route path="/" component={Home} /><Route path="/session/:id" component={SessionRoute} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {

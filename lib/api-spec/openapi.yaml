@@ -162,6 +162,79 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /interviews/{id}/avatar-options:
+    get:
+      operationId: getInterviewAvatarOptions
+      tags: [interviews]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: Available real-time video interviewers
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/InterviewAvatarOptions"}
+        "503":
+          description: Video provider unavailable
+  /interviews/{id}/avatar/start:
+    post:
+      operationId: startInterviewAvatar
+      tags: [interviews]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/InterviewAvatarInput"}
+      responses:
+        "200":
+          description: Short-lived receive-only video connection details
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/InterviewAvatarConnection"}
+        "400":
+          description: Invalid session or missing spending consent
+        "403":
+          description: Paid video sessions disabled by project owner
+        "409":
+          description: Video session already active
+        "502":
+          description: Video provider unavailable
+  /interviews/{id}/avatar/stop:
+    post:
+      operationId: stopInterviewAvatar
+      tags: [interviews]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/InterviewAvatarStopInput"}
+      responses:
+        "200":
+          description: Video session stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stopped: {type: boolean}
+                required: [stopped]
+  /interviews/{id}/question-audio:
+    post:
+      operationId: readInterviewQuestion
+      tags: [interviews]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        "200":
+          description: Current question spoken as PCM16 24kHz audio and transcript SSE
+          content:
+            text/event-stream: {}
+        "400":
+          description: No active question
   /interviews/{id}/voice-turn:
     post:
       operationId: sendInterviewVoiceTurn
@@ -369,12 +442,57 @@ components:
           minLength: 1
           maxLength: 5000
       required: [answer]
+    InterviewAvatarOptions:
+      type: object
+      properties:
+        configured: {type: boolean}
+        paidEnabled: {type: boolean}
+        sandboxAvatarId: {type: string, format: uuid}
+        sandboxMaxSeconds: {type: integer}
+        avatars:
+          type: array
+          items: {$ref: "#/components/schemas/InterviewAvatar"}
+      required: [configured, paidEnabled, sandboxAvatarId, sandboxMaxSeconds, avatars]
+    InterviewAvatar:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        name: {type: string}
+        previewUrl: {type: [string, "null"]}
+      required: [id, name, previewUrl]
+    InterviewAvatarInput:
+      type: object
+      properties:
+        avatarId: {type: string, format: uuid}
+        isSandbox: {type: boolean}
+        acceptCharges: {type: boolean}
+      required: [avatarId, isSandbox, acceptCharges]
+    InterviewAvatarStopInput:
+      type: object
+      properties:
+        sessionId: {type: string, format: uuid}
+      required: [sessionId]
+    InterviewAvatarConnection:
+      type: object
+      properties:
+        sessionId: {type: string, format: uuid}
+        livekitUrl: {type: string}
+        livekitToken: {type: string}
+        websocketUrl: {type: string}
+        isSandbox: {type: boolean}
+        maxDurationSeconds: {type: integer}
+      required: [sessionId, livekitUrl, livekitToken, websocketUrl, isSandbox, maxDurationSeconds]
     InterviewVoiceInput:
       type: object
       properties:
         audio:
           type: string
-          description: Base64-encoded browser-recorded audio.
+          description: Base64-encoded browser or phone recording.
+        expectedQuestionNumber:
+          type: integer
+          minimum: 1
+          maximum: 20
+          description: The original question being answered; prevents a retried recording from answering a later question.
       required: [audio]
     InterviewEvaluation:
       type: object

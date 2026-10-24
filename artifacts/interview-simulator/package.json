@@ -75,6 +75,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "@workspace/integrations-openai-ai-react": "workspace:*"
+    "@workspace/integrations-openai-ai-react": "workspace:*",
+    "livekit-client": "^2.23.0"
   }
 }

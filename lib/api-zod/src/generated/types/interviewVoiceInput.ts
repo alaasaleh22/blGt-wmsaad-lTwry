@@ -7,6 +7,12 @@
  */
 
 export interface InterviewVoiceInput {
-  /** Base64-encoded browser-recorded audio. */
+  /** Base64-encoded browser or phone recording. */
   audio: string;
+  /**
+     * The original question being answered; prevents a retried recording from answering a later question.
+     * @minimum 1
+     * @maximum 20
+     */
+  expectedQuestionNumber?: number;
 }

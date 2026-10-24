@@ -410,13 +410,17 @@ router.post("/interviews/:id/voice-turn", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Interview not found." });
     return;
   }
-  if (detail.session.status !== "active" || detail.session.mode !== "voice") {
+  if (detail.session.status !== "active") {
     res.status(400).json({ error: "This interview is not accepting voice answers." });
     return;
   }
   const currentTurn = detail.turns.at(-1);
   if (!currentTurn || currentTurn.answer !== null) {
     res.status(400).json({ error: "There is no unanswered question." });
+    return;
+  }
+  if (body.data.expectedQuestionNumber !== undefined && body.data.expectedQuestionNumber !== currentTurn.questionNumber) {
+    res.status(409).json({ error: "هذا التسجيل يخص سؤالًا سابقًا. راجع السؤال الحالي قبل تسجيل إجابة جديدة." });
     return;
   }
   if (body.data.audio.length > 14_000_000) {

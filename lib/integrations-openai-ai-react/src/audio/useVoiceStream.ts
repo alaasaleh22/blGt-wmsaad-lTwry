@@ -5,6 +5,8 @@ interface StreamCallbacks {
   workletPath: string;
   onUserTranscript?: (text: string) => void;
   onTranscript?: (text: string, full: string) => void;
+  /** Return true when an external synchronized video renderer consumes audio. */
+  onAudioChunk?: (base64Audio: string) => boolean;
   onComplete?: (transcript: string) => void;
   onError?: (error: Error) => void;
 }
@@ -153,7 +155,7 @@ function handleVoiceStreamEvent(
       return;
 
     case "audio":
-      playback.pushAudio(event.data);
+      if (!callbacks.onAudioChunk?.(event.data)) playback.pushAudio(event.data);
       return;
 
     case "error":
@@ -249,7 +251,7 @@ export function useVoiceStream({ workletPath, ...callbacks }: StreamCallbacks) {
   }, []);
 
   const streamVoiceResponse = useCallback(
-    async (url: string, audioBlob: Blob): Promise<void> => {
+    async (url: string, audioBlob?: Blob): Promise<void> => {
       activeRequestRef.current?.abort();
 
       const abortController = new AbortController();
@@ -294,7 +296,7 @@ export function useVoiceStream({ workletPath, ...callbacks }: StreamCallbacks) {
 
         playbackRef.current.clear();
 
-        const base64Audio = await blobToBase64(audioBlob, abortController.signal);
+        const base64Audio = audioBlob ? await blobToBase64(audioBlob, abortController.signal) : undefined;
         throwIfNotCurrent();
 
         const response = await fetch(url, {
@@ -303,7 +305,7 @@ export function useVoiceStream({ workletPath, ...callbacks }: StreamCallbacks) {
             "Content-Type": "application/json",
             Accept: "text/event-stream",
           },
-          body: JSON.stringify({ audio: base64Audio }),
+          body: base64Audio === undefined ? undefined : JSON.stringify({ audio: base64Audio }),
           signal: abortController.signal,
         });
         throwIfNotCurrent();

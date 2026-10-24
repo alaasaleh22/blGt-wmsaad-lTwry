@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CreateInterviewBody, GetInterviewResponse } from "@workspace/api-zod";
+import { CreateInterviewBody, GetInterviewResponse, SendInterviewVoiceTurnBody } from "@workspace/api-zod";
 
 const profile = {
   roleTitle: "معلم علوم",
@@ -47,5 +47,16 @@ test("old three- and five-question sessions remain readable", () => {
       },
       turns: [],
     }).success, true);
+  }
+});
+
+test("voice uploads can bind retries to their original question without breaking older clients", () => {
+  assert.equal(SendInterviewVoiceTurnBody.safeParse({ audio: "AA==" }).success, true);
+  for (const expectedQuestionNumber of [1, 5, 15, 20]) {
+    const parsed = SendInterviewVoiceTurnBody.parse({ audio: "AA==", expectedQuestionNumber });
+    assert.equal(parsed.expectedQuestionNumber, expectedQuestionNumber);
+  }
+  for (const expectedQuestionNumber of [0, 21, 1.5]) {
+    assert.equal(SendInterviewVoiceTurnBody.safeParse({ audio: "AA==", expectedQuestionNumber }).success, false);
   }
 });

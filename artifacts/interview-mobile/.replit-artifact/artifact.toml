@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/interview-mobile/"
+title = "مرآة — مقابلات الهاتف"
+description = "تطبيق هاتف عربي لمحاكاة المقابلات الوظيفية في 17 مجالًا، مع 15–20 سؤالًا، إجابات صوتية أو نصية، معاينة كاميرا محلية ومحاور فيديو افتراضي واقعي عبر LiveAvatar، مرتبط بخادم وجلسات محاكي المقابلات الحالي."
+version = "1.0.0"
+id = "artifacts/interview-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/interview-mobile/" ]
+localPort = 20667
+
+[services.development]
+run = "pnpm --filter @workspace/interview-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/interview-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/interview-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "20667"
+BASE_PATH = "/interview-mobile/"

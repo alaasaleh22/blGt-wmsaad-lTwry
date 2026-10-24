@@ -1,0 +1,46 @@
+import type { InterviewInput } from '@workspace/api-client-react';
+
+export type TrackKey = InterviewInput['track'];
+export interface ProfessionCategory { key: TrackKey; label: string; en: string; icon: string; jobs: string[] }
+
+export const professionCatalog: ProfessionCategory[] = [
+  { key: 'software', label: 'البرمجيات والتقنية', en: 'Software', icon: 'code', jobs: ['مهندس برمجيات', 'مطوّر واجهات أمامية', 'مهندس DevOps', 'محلل أمن سيبراني', 'عالم بيانات'] },
+  { key: 'industrial', label: 'الهندسة الصناعية', en: 'Industrial', icon: 'settings', jobs: ['مهندس صناعي', 'مهندس جودة', 'أخصائي تحسين العمليات', 'مخطط إنتاج'] },
+  { key: 'mechanical', label: 'الهندسة الميكانيكية', en: 'Mechanical', icon: 'tool', jobs: ['مهندس ميكانيكي', 'مهندس صيانة', 'مهندس تكييف وتبريد', 'مصمم ميكانيكي'] },
+  { key: 'electrical', label: 'الهندسة الكهربائية', en: 'Electrical', icon: 'zap', jobs: ['مهندس كهربائي', 'مهندس طاقة متجددة', 'مهندس أنظمة تحكم', 'مهندس اتصالات'] },
+  { key: 'civil', label: 'الهندسة المدنية', en: 'Civil', icon: 'layers', jobs: ['مهندس مدني', 'مهندس إنشائي', 'مدير مشروع إنشاءات', 'مهندس موقع', 'مساح أراضي'] },
+  { key: 'healthcare', label: 'الرعاية الصحية', en: 'Healthcare', icon: 'heart', jobs: ['ممرض/ممرضة', 'طبيب عام', 'صيدلي', 'أخصائي علاج طبيعي', 'فني مختبر طبي'] },
+  { key: 'education', label: 'التعليم والتدريب', en: 'Education', icon: 'book-open', jobs: ['معلم رياضيات', 'معلم لغة عربية', 'مرشد طلابي', 'مدرب مهني', 'مصمم تعليمي'] },
+  { key: 'business', label: 'الإدارة والأعمال', en: 'Business', icon: 'briefcase', jobs: ['مدير مشروع', 'أخصائي موارد بشرية', 'محلل أعمال', 'مدير عمليات', 'مساعد إداري'] },
+  { key: 'finance', label: 'المالية والمحاسبة', en: 'Finance', icon: 'trending-up', jobs: ['محاسب', 'محلل مالي', 'مدقق داخلي', 'أخصائي ائتمان', 'مسؤول خزينة'] },
+  { key: 'sales', label: 'المبيعات والتسويق', en: 'Sales', icon: 'shopping-bag', jobs: ['مندوب مبيعات', 'مدير حسابات', 'أخصائي تسويق رقمي', 'ممثل خدمة عملاء', 'مدير علامة تجارية'] },
+  { key: 'hospitality', label: 'الضيافة والسياحة', en: 'Hospitality', icon: 'coffee', jobs: ['موظف استقبال فندقي', 'مشرف مطعم', 'طاهٍ', 'منسق فعاليات', 'مرشد سياحي'] },
+  { key: 'logistics', label: 'اللوجستيات وسلاسل الإمداد', en: 'Logistics', icon: 'truck', jobs: ['أخصائي سلاسل إمداد', 'مشرف مستودع', 'منسق شحن', 'أخصائي مشتريات'] },
+  { key: 'skilled_trades', label: 'الحِرف والمهن الفنية', en: 'Trades', icon: 'hexagon', jobs: ['كهربائي', 'سبّاك', 'فني لحام', 'فني سيارات', 'فني تكييف'] },
+  { key: 'legal', label: 'القانون', en: 'Legal', icon: 'shield', jobs: ['محامٍ', 'مستشار قانوني', 'باحث قانوني', 'مسؤول امتثال'] },
+  { key: 'media', label: 'الإعلام والتصميم', en: 'Media', icon: 'pen-tool', jobs: ['صحفي', 'مصمم جرافيك', 'صانع محتوى', 'مونتير فيديو', 'أخصائي علاقات عامة'] },
+  { key: 'science', label: 'العلوم والبحث', en: 'Science', icon: 'droplet', jobs: ['باحث مختبر', 'كيميائي', 'أخصائي بيئة', 'عالم أحياء'] },
+  { key: 'other', label: 'مجال آخر', en: 'Other', icon: 'compass', jobs: ['موظف حكومي', 'أخصائي اجتماعي', 'مترجم', 'رجل أمن', 'متدرب حديث التخرج'] },
+];
+
+export const trackLabels = Object.fromEntries(professionCatalog.map((c) => [c.key, c.label])) as Record<TrackKey, string>;
+
+export type StageKey = 'intro' | 'experience' | 'scenarios' | 'behavior' | 'closing';
+export function stageFor(n: number, total: number): StageKey {
+  if (n <= 1) return 'intro';
+  if (n >= total) return 'closing';
+  const f = n / Math.max(1, total);
+  if (f <= 0.2) return 'experience';
+  if (f <= 0.65) return 'scenarios';
+  if (f <= 0.9) return 'behavior';
+  return 'closing';
+}
+export const stageLabels: Record<StageKey, { ar: string; en: string }> = {
+  intro: { ar: 'تعارف وافتتاح', en: 'Introduction' },
+  experience: { ar: 'الخبرة والخلفية', en: 'Experience' },
+  scenarios: { ar: 'مواقف الدور العملية', en: 'Role scenarios' },
+  behavior: { ar: 'السلوك والأخلاقيات', en: 'Behaviour & ethics' },
+  closing: { ar: 'الختام', en: 'Closing' },
+};
+export const levelLabels = { junior: 'مبتدئ', mid: 'متوسط', senior: 'خبير' } as const;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

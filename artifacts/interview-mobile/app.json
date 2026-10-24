@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "مرآة — مقابلات الهاتف",
+    "slug": "interview-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/miraa-icon.png",
+    "scheme": "interview-mobile",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "تستخدم مرآة الكاميرا الأمامية لعرض صورتك محليًا أثناء المقابلة فقط، ولا تُرسل أو تُسجَّل.",
+        "NSMicrophoneUsageDescription": "تستخدم مرآة الميكروفون لتسجيل إجاباتك الصوتية وإرسالها لتقييم المقابلة."
+      }
+    },
+    "android": {
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/miraa-icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "تستخدم مرآة الميكروفون لتسجيل إجاباتك الصوتية وإرسالها لتقييم المقابلة."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "تستخدم مرآة الكاميرا الأمامية لعرض صورتك محليًا أثناء المقابلة فقط، ولا تُرسل أو تُسجَّل.",
+          "microphonePermission": "تستخدم مرآة الميكروفون لتسجيل إجاباتك الصوتية.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/miraa-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#F5F2EA",
+          "dark": {
+            "backgroundColor": "#18272E"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

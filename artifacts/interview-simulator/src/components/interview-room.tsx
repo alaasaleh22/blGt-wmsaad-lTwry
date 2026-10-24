@@ -70,16 +70,16 @@ export function CameraPreview({ english, active }: { english: boolean; active: b
   </div>;
 }
 
-export function InterviewRoom({ english, phase, stageLabel, active, children }: {
-  english: boolean; phase: RoomPhase; stageLabel: string; active: boolean; children?: ReactNode;
+export function InterviewRoom({ english, phase, stageLabel, active, interviewer, children }: {
+  english: boolean; phase: RoomPhase; stageLabel: string; active: boolean; interviewer?: ReactNode; children?: ReactNode;
 }) {
   const phaseText: Record<RoomPhase, string> = english
     ? { idle: 'Waiting for your answer', listening: 'Listening to you…', processing: 'Thinking about your answer…', speaking: 'Interviewer is speaking' }
     : { idle: 'بانتظار إجابتك', listening: 'يستمع إليك…', processing: 'يراجع إجابتك…', speaking: 'المحاور يتحدث الآن' };
   return <section className={`room phase-${phase}`} data-testid="panel-interview-room" aria-label={english ? 'Interview room' : 'غرفة المقابلة'}>
     <div className="room-stage-label" data-testid="text-interview-stage">{english ? 'Stage' : 'المرحلة'}: {stageLabel}</div>
-    <div className="room-grid">
-      <div className="ai-tile">
+    <div className={`room-grid${interviewer ? ' with-avatar' : ''}`}>
+      {interviewer ?? <div className="ai-tile">
         <div className="tile-label">{english ? 'Virtual voice interviewer' : 'المحاور الصوتي الافتراضي'}</div>
         <div className="ai-core" aria-hidden="true">
           <div className="ai-mark">م</div>
@@ -87,7 +87,7 @@ export function InterviewRoom({ english, phase, stageLabel, active, children }: 
         </div>
         <p className="ai-status" role="status" aria-live="polite" data-testid="status-interview-room">{phaseText[phase]}</p>
         <p className="ai-note">{english ? 'Voice-only AI — no human video.' : 'ذكاء اصطناعي صوتي فقط — لا يوجد فيديو بشري.'}</p>
-      </div>
+      </div>}
       <CameraPreview english={english} active={active} />
     </div>
     {children}

@@ -201,9 +201,49 @@ export interface InterviewAnswerInput {
   answer: string;
 }
 
+export interface InterviewAvatar {
+  id: string;
+  name: string;
+  /** @nullable */
+  previewUrl: string | null;
+}
+
+export interface InterviewAvatarOptions {
+  configured: boolean;
+  paidEnabled: boolean;
+  sandboxAvatarId: string;
+  sandboxMaxSeconds: number;
+  avatars: InterviewAvatar[];
+}
+
+export interface InterviewAvatarInput {
+  avatarId: string;
+  isSandbox: boolean;
+  acceptCharges: boolean;
+}
+
+export interface InterviewAvatarStopInput {
+  sessionId: string;
+}
+
+export interface InterviewAvatarConnection {
+  sessionId: string;
+  livekitUrl: string;
+  livekitToken: string;
+  websocketUrl: string;
+  isSandbox: boolean;
+  maxDurationSeconds: number;
+}
+
 export interface InterviewVoiceInput {
-  /** Base64-encoded browser-recorded audio. */
+  /** Base64-encoded browser or phone recording. */
   audio: string;
+  /**
+     * The original question being answered; prevents a retried recording from answering a later question.
+     * @minimum 1
+     * @maximum 20
+     */
+  expectedQuestionNumber?: number;
 }
 
 export interface InterviewEvaluation {
@@ -321,4 +361,8 @@ export interface InterviewAnswerResult {
   nextQuestion: string | null;
   evaluation: InterviewEvaluation | null;
 }
+
+export type StopInterviewAvatar200 = {
+  stopped: boolean;
+};
 

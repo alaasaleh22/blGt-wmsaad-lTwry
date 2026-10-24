@@ -273,6 +273,63 @@ export const SubmitInterviewAnswerResponse = zod.object({
 })
 
 
+export const GetInterviewAvatarOptionsParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const GetInterviewAvatarOptionsResponse = zod.object({
+  "configured": zod.boolean(),
+  "paidEnabled": zod.boolean(),
+  "sandboxAvatarId": zod.string().uuid(),
+  "sandboxMaxSeconds": zod.number().int(),
+  "avatars": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "previewUrl": zod.string().nullable()
+}))
+})
+
+
+export const StartInterviewAvatarParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const StartInterviewAvatarBody = zod.object({
+  "avatarId": zod.string().uuid(),
+  "isSandbox": zod.boolean(),
+  "acceptCharges": zod.boolean()
+})
+
+export const StartInterviewAvatarResponse = zod.object({
+  "sessionId": zod.string().uuid(),
+  "livekitUrl": zod.string(),
+  "livekitToken": zod.string(),
+  "websocketUrl": zod.string(),
+  "isSandbox": zod.boolean(),
+  "maxDurationSeconds": zod.number().int()
+})
+
+
+export const StopInterviewAvatarParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const StopInterviewAvatarBody = zod.object({
+  "sessionId": zod.string().uuid()
+})
+
+export const StopInterviewAvatarResponse = zod.object({
+  "stopped": zod.boolean()
+})
+
+
+export const ReadInterviewQuestionParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const ReadInterviewQuestionResponse = zod.unknown()
+
+
 /**
  * Accepts base64-encoded browser audio and returns transcript/audio SSE events.
  * @summary Send a recorded answer and receive a spoken next question
@@ -281,8 +338,13 @@ export const SendInterviewVoiceTurnParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
+export const sendInterviewVoiceTurnBodyExpectedQuestionNumberMax = 20;
+
+
+
 export const SendInterviewVoiceTurnBody = zod.object({
-  "audio": zod.string().describe('Base64-encoded browser-recorded audio.')
+  "audio": zod.string().describe('Base64-encoded browser or phone recording.'),
+  "expectedQuestionNumber": zod.number().int().min(1).max(sendInterviewVoiceTurnBodyExpectedQuestionNumberMax).optional().describe('The original question being answered; prevents a retried recording from answering a later question.')
 })
 
 export const SendInterviewVoiceTurnResponse = zod.unknown()
