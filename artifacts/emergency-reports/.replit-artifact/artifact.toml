@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "بلاغات الطوارئ"
+description = "تطبيق عربي يتيح للمتضررين إرسال بلاغات وطلبات مساعدة في حالات الطوارئ، مع الموقع ودرجة الاستعجال ومتابعة حالة كل بلاغ."
+version = "1.0.0"
+id = "artifacts/emergency-reports"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25221
+
+[services.development]
+run = "pnpm --filter @workspace/emergency-reports run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/emergency-reports", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/emergency-reports/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25221"
+BASE_PATH = "/"

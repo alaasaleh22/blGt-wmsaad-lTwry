@@ -1,0 +1,1 @@
+- [Emergency-report safety](emergency-report-safety.md) — do not imply a report is monitored or dispatched unless a real response operation exists.

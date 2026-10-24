@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: reports
+    description: Emergency incident reports and assistance requests
 paths:
   /healthz:
     get:
@@ -24,6 +26,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /reports:
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Submit an emergency report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+  /reports/summary:
+    get:
+      operationId: getReportSummary
+      tags: [reports]
+      summary: Get aggregate report counts
+      responses:
+        "200":
+          description: Aggregate emergency report counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportSummary"
+  /reports/{trackingCode}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Retrieve a report using its private tracking code
+      parameters:
+        - name: trackingCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The requested report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +89,104 @@ components:
           type: string
       required:
         - status
+    ReportInput:
+      type: object
+      properties:
+        incidentType:
+          type: string
+          enum: [fire, flood, earthquake, medical, building, other]
+        description:
+          type: string
+          minLength: 10
+          maxLength: 2000
+        locationText:
+          type: string
+          minLength: 3
+          maxLength: 300
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        urgency:
+          type: string
+          enum: [critical, high, normal]
+        contactName:
+          type: ["string", "null"]
+          maxLength: 100
+        contactPhone:
+          type: ["string", "null"]
+          maxLength: 30
+      required:
+        - incidentType
+        - description
+        - locationText
+        - latitude
+        - longitude
+        - urgency
+        - contactName
+        - contactPhone
+    Report:
+      type: object
+      properties:
+        id:
+          type: integer
+        trackingCode:
+          type: string
+        incidentType:
+          type: string
+          enum: [fire, flood, earthquake, medical, building, other]
+        description:
+          type: string
+        locationText:
+          type: string
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        urgency:
+          type: string
+          enum: [critical, high, normal]
+        status:
+          type: string
+          enum: [received, reviewing, dispatched, resolved]
+        contactName:
+          type: ["string", "null"]
+        contactPhone:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - trackingCode
+        - incidentType
+        - description
+        - locationText
+        - latitude
+        - longitude
+        - urgency
+        - status
+        - contactName
+        - contactPhone
+        - createdAt
+        - updatedAt
+    ReportSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        active:
+          type: integer
+        resolved:
+          type: integer
+      required: [total, active, resolved]
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
 
