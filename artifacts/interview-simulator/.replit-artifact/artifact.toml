@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/interview-simulator/"
+title = "محاكي المقابلات التقنية"
+description = "تطبيق تدريب تفاعلي على المقابلات الوظيفية التقنية والهندسية، يتيح إجراء جلسات نصية أو صوتية مع أسئلة مخصصة وتقييم عملي للإجابات."
+version = "1.0.0"
+id = "artifacts/interview-simulator"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/interview-simulator/" ]
+localPort = 25978
+
+[services.development]
+run = "pnpm --filter @workspace/interview-simulator run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/interview-simulator", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/interview-simulator/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25978"
+BASE_PATH = "/interview-simulator/"

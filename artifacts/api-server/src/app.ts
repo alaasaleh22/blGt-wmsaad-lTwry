@@ -14,10 +14,13 @@ app.use(
         return {
           id: req.id,
           method: req.method,
-          url: req.url?.split("?")[0].replace(
-            /\/reports\/[^/]+$/,
-            "/reports/[tracking-code-redacted]",
-          ),
+          url: req.url
+            ?.split("?")[0]
+            .replace(/\/reports\/[^/]+$/, "/reports/[tracking-code-redacted]")
+            .replace(
+              /\/interviews\/[^/]+(?=\/|$)/,
+              "/interviews/[session-id-redacted]",
+            ),
         };
       },
       res(res) {
@@ -29,7 +32,8 @@ app.use(
   }),
 );
 app.use(cors());
-app.use(express.json());
+app.use("/api/interviews/:id/voice-turn", express.json({ limit: "15mb" }));
+app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);

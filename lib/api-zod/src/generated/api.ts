@@ -94,3 +94,247 @@ export const GetReportResponse = zod.object({
 })
 
 
+/**
+ * @summary Start an interview practice session
+ */
+export const createInterviewBodyRoleTitleMin = 2;
+export const createInterviewBodyRoleTitleMax = 120;
+
+
+
+export const CreateInterviewBody = zod.object({
+  "roleTitle": zod.string().min(createInterviewBodyRoleTitleMin).max(createInterviewBodyRoleTitleMax),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
+  "language": zod.enum(['ar', 'en']),
+  "mode": zod.enum(['text', 'voice']),
+  "questionCount": zod.union([zod.literal(3),zod.literal(5)])
+})
+
+export const createInterviewResponseSessionEvaluationOneOverallScoreMin = 0;
+export const createInterviewResponseSessionEvaluationOneOverallScoreMax = 100;
+
+
+
+export const CreateInterviewResponse = zod.object({
+  "session": zod.object({
+  "id": zod.string().uuid(),
+  "roleTitle": zod.string(),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
+  "language": zod.enum(['ar', 'en']),
+  "mode": zod.enum(['text', 'voice']),
+  "questionCount": zod.number().int(),
+  "status": zod.enum(['active', 'completed']),
+  "currentQuestion": zod.string().nullable(),
+  "turnNumber": zod.number().int(),
+  "evaluation": zod.union([zod.object({
+  "overallScore": zod.number().int().min(createInterviewResponseSessionEvaluationOneOverallScoreMin).max(createInterviewResponseSessionEvaluationOneOverallScoreMax),
+  "summary": zod.string(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "nextSteps": zod.array(zod.string())
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "interviewId": zod.string().uuid(),
+  "questionNumber": zod.number().int(),
+  "question": zod.string(),
+  "answer": zod.string().nullable(),
+  "score": zod.number().int().nullable(),
+  "feedback": zod.string().nullable(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "voiceReply": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Get an interview and its saved turns
+ */
+export const GetInterviewParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const getInterviewResponseSessionEvaluationOneOverallScoreMin = 0;
+export const getInterviewResponseSessionEvaluationOneOverallScoreMax = 100;
+
+
+
+export const GetInterviewResponse = zod.object({
+  "session": zod.object({
+  "id": zod.string().uuid(),
+  "roleTitle": zod.string(),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
+  "language": zod.enum(['ar', 'en']),
+  "mode": zod.enum(['text', 'voice']),
+  "questionCount": zod.number().int(),
+  "status": zod.enum(['active', 'completed']),
+  "currentQuestion": zod.string().nullable(),
+  "turnNumber": zod.number().int(),
+  "evaluation": zod.union([zod.object({
+  "overallScore": zod.number().int().min(getInterviewResponseSessionEvaluationOneOverallScoreMin).max(getInterviewResponseSessionEvaluationOneOverallScoreMax),
+  "summary": zod.string(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "nextSteps": zod.array(zod.string())
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "interviewId": zod.string().uuid(),
+  "questionNumber": zod.number().int(),
+  "question": zod.string(),
+  "answer": zod.string().nullable(),
+  "score": zod.number().int().nullable(),
+  "feedback": zod.string().nullable(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "voiceReply": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Submit a text answer and receive feedback
+ */
+export const SubmitInterviewAnswerParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const submitInterviewAnswerBodyAnswerMax = 5000;
+
+
+
+export const SubmitInterviewAnswerBody = zod.object({
+  "answer": zod.string().min(1).max(submitInterviewAnswerBodyAnswerMax)
+})
+
+export const submitInterviewAnswerResponseSessionEvaluationOneOverallScoreMin = 0;
+export const submitInterviewAnswerResponseSessionEvaluationOneOverallScoreMax = 100;
+
+export const submitInterviewAnswerResponseEvaluationOneOverallScoreMin = 0;
+export const submitInterviewAnswerResponseEvaluationOneOverallScoreMax = 100;
+
+
+
+export const SubmitInterviewAnswerResponse = zod.object({
+  "session": zod.object({
+  "id": zod.string().uuid(),
+  "roleTitle": zod.string(),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
+  "language": zod.enum(['ar', 'en']),
+  "mode": zod.enum(['text', 'voice']),
+  "questionCount": zod.number().int(),
+  "status": zod.enum(['active', 'completed']),
+  "currentQuestion": zod.string().nullable(),
+  "turnNumber": zod.number().int(),
+  "evaluation": zod.union([zod.object({
+  "overallScore": zod.number().int().min(submitInterviewAnswerResponseSessionEvaluationOneOverallScoreMin).max(submitInterviewAnswerResponseSessionEvaluationOneOverallScoreMax),
+  "summary": zod.string(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "nextSteps": zod.array(zod.string())
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "turn": zod.object({
+  "id": zod.number().int(),
+  "interviewId": zod.string().uuid(),
+  "questionNumber": zod.number().int(),
+  "question": zod.string(),
+  "answer": zod.string().nullable(),
+  "score": zod.number().int().nullable(),
+  "feedback": zod.string().nullable(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "voiceReply": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "nextQuestion": zod.string().nullable(),
+  "evaluation": zod.union([zod.object({
+  "overallScore": zod.number().int().min(submitInterviewAnswerResponseEvaluationOneOverallScoreMin).max(submitInterviewAnswerResponseEvaluationOneOverallScoreMax),
+  "summary": zod.string(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "nextSteps": zod.array(zod.string())
+}),zod.null()])
+})
+
+
+/**
+ * Accepts base64-encoded browser audio and returns transcript/audio SSE events.
+ * @summary Send a recorded answer and receive a spoken next question
+ */
+export const SendInterviewVoiceTurnParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const SendInterviewVoiceTurnBody = zod.object({
+  "audio": zod.string().describe('Base64-encoded browser-recorded audio.')
+})
+
+export const SendInterviewVoiceTurnResponse = zod.unknown()
+
+
+/**
+ * @summary Finish early and generate a final evaluation
+ */
+export const FinishInterviewParams = zod.object({
+  "id": zod.coerce.string().uuid()
+})
+
+export const finishInterviewResponseSessionEvaluationOneOverallScoreMin = 0;
+export const finishInterviewResponseSessionEvaluationOneOverallScoreMax = 100;
+
+
+
+export const FinishInterviewResponse = zod.object({
+  "session": zod.object({
+  "id": zod.string().uuid(),
+  "roleTitle": zod.string(),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
+  "language": zod.enum(['ar', 'en']),
+  "mode": zod.enum(['text', 'voice']),
+  "questionCount": zod.number().int(),
+  "status": zod.enum(['active', 'completed']),
+  "currentQuestion": zod.string().nullable(),
+  "turnNumber": zod.number().int(),
+  "evaluation": zod.union([zod.object({
+  "overallScore": zod.number().int().min(finishInterviewResponseSessionEvaluationOneOverallScoreMin).max(finishInterviewResponseSessionEvaluationOneOverallScoreMax),
+  "summary": zod.string(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "nextSteps": zod.array(zod.string())
+}),zod.null()]),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}),
+  "turns": zod.array(zod.object({
+  "id": zod.number().int(),
+  "interviewId": zod.string().uuid(),
+  "questionNumber": zod.number().int(),
+  "question": zod.string(),
+  "answer": zod.string().nullable(),
+  "score": zod.number().int().nullable(),
+  "feedback": zod.string().nullable(),
+  "strengths": zod.array(zod.string()),
+  "improvements": zod.array(zod.string()),
+  "voiceReply": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+

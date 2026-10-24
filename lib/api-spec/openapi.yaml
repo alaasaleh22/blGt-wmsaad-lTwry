@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: reports
     description: Emergency incident reports and assistance requests
+  - name: interviews
+    description: Interactive technical and engineering interview practice
 paths:
   /healthz:
     get:
@@ -76,6 +78,153 @@ paths:
                 $ref: "#/components/schemas/Report"
         "404":
           description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /interviews:
+    post:
+      operationId: createInterview
+      tags: [interviews]
+      summary: Start an interview practice session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewInput"
+      responses:
+        "201":
+          description: Interview created with its first question
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewDetail"
+  /interviews/{id}:
+    get:
+      operationId: getInterview
+      tags: [interviews]
+      summary: Get an interview and its saved turns
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Interview session and turns
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewDetail"
+        "404":
+          description: Interview not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /interviews/{id}/answers:
+    post:
+      operationId: submitInterviewAnswer
+      tags: [interviews]
+      summary: Submit a text answer and receive feedback
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewAnswerInput"
+      responses:
+        "200":
+          description: Answer feedback and the next question or final evaluation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewAnswerResult"
+        "400":
+          description: Invalid answer or session state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Interview not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /interviews/{id}/voice-turn:
+    post:
+      operationId: sendInterviewVoiceTurn
+      tags: [interviews]
+      summary: Send a recorded answer and receive a spoken next question
+      description: Accepts base64-encoded browser audio and returns transcript/audio SSE events.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InterviewVoiceInput"
+      responses:
+        "200":
+          description: SSE events for transcript and generated audio
+          content:
+            text/event-stream: {}
+        "400":
+          description: Invalid audio or session state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Interview not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /interviews/{id}/finish:
+    post:
+      operationId: finishInterview
+      tags: [interviews]
+      summary: Finish early and generate a final evaluation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Completed interview with evaluation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InterviewDetail"
+        "400":
+          description: Interview has no answer to evaluate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Interview not found
           content:
             application/json:
               schema:
@@ -189,4 +338,184 @@ components:
         error:
           type: string
       required: [error]
+    InterviewInput:
+      type: object
+      properties:
+        roleTitle:
+          type: string
+          minLength: 2
+          maxLength: 120
+        track:
+          type: string
+          enum: [software, industrial, mechanical, electrical, civil, other]
+        experienceLevel:
+          type: string
+          enum: [junior, mid, senior]
+        language:
+          type: string
+          enum: [ar, en]
+        mode:
+          type: string
+          enum: [text, voice]
+        questionCount:
+          type: integer
+          enum: [3, 5]
+      required: [roleTitle, track, experienceLevel, language, mode, questionCount]
+    InterviewAnswerInput:
+      type: object
+      properties:
+        answer:
+          type: string
+          minLength: 1
+          maxLength: 5000
+      required: [answer]
+    InterviewVoiceInput:
+      type: object
+      properties:
+        audio:
+          type: string
+          description: Base64-encoded browser-recorded audio.
+      required: [audio]
+    InterviewEvaluation:
+      type: object
+      properties:
+        overallScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        summary:
+          type: string
+        strengths:
+          type: array
+          items:
+            type: string
+        improvements:
+          type: array
+          items:
+            type: string
+        nextSteps:
+          type: array
+          items:
+            type: string
+      required: [overallScore, summary, strengths, improvements, nextSteps]
+    InterviewSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        roleTitle:
+          type: string
+        track:
+          type: string
+          enum: [software, industrial, mechanical, electrical, civil, other]
+        experienceLevel:
+          type: string
+          enum: [junior, mid, senior]
+        language:
+          type: string
+          enum: [ar, en]
+        mode:
+          type: string
+          enum: [text, voice]
+        questionCount:
+          type: integer
+        status:
+          type: string
+          enum: [active, completed]
+        currentQuestion:
+          type: ["string", "null"]
+        turnNumber:
+          type: integer
+        evaluation:
+          anyOf:
+            - $ref: "#/components/schemas/InterviewEvaluation"
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - roleTitle
+        - track
+        - experienceLevel
+        - language
+        - mode
+        - questionCount
+        - status
+        - currentQuestion
+        - turnNumber
+        - evaluation
+        - createdAt
+        - updatedAt
+    InterviewTurn:
+      type: object
+      properties:
+        id:
+          type: integer
+        interviewId:
+          type: string
+          format: uuid
+        questionNumber:
+          type: integer
+        question:
+          type: string
+        answer:
+          type: ["string", "null"]
+        score:
+          type: ["integer", "null"]
+        feedback:
+          type: ["string", "null"]
+        strengths:
+          type: array
+          items:
+            type: string
+        improvements:
+          type: array
+          items:
+            type: string
+        voiceReply:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - interviewId
+        - questionNumber
+        - question
+        - answer
+        - score
+        - feedback
+        - strengths
+        - improvements
+        - voiceReply
+        - createdAt
+    InterviewDetail:
+      type: object
+      properties:
+        session:
+          $ref: "#/components/schemas/InterviewSession"
+        turns:
+          type: array
+          items:
+            $ref: "#/components/schemas/InterviewTurn"
+      required: [session, turns]
+    InterviewAnswerResult:
+      type: object
+      properties:
+        session:
+          $ref: "#/components/schemas/InterviewSession"
+        turn:
+          $ref: "#/components/schemas/InterviewTurn"
+        nextQuestion:
+          type: ["string", "null"]
+        evaluation:
+          anyOf:
+            - $ref: "#/components/schemas/InterviewEvaluation"
+            - type: "null"
+      required: [session, turn, nextQuestion, evaluation]
 

@@ -120,3 +120,179 @@ export interface Error {
   error: string;
 }
 
+export type InterviewInputTrack = typeof InterviewInputTrack[keyof typeof InterviewInputTrack];
+
+
+export const InterviewInputTrack = {
+  software: 'software',
+  industrial: 'industrial',
+  mechanical: 'mechanical',
+  electrical: 'electrical',
+  civil: 'civil',
+  other: 'other',
+} as const;
+
+export type InterviewInputExperienceLevel = typeof InterviewInputExperienceLevel[keyof typeof InterviewInputExperienceLevel];
+
+
+export const InterviewInputExperienceLevel = {
+  junior: 'junior',
+  mid: 'mid',
+  senior: 'senior',
+} as const;
+
+export type InterviewInputLanguage = typeof InterviewInputLanguage[keyof typeof InterviewInputLanguage];
+
+
+export const InterviewInputLanguage = {
+  ar: 'ar',
+  en: 'en',
+} as const;
+
+export type InterviewInputMode = typeof InterviewInputMode[keyof typeof InterviewInputMode];
+
+
+export const InterviewInputMode = {
+  text: 'text',
+  voice: 'voice',
+} as const;
+
+export type InterviewInputQuestionCount = typeof InterviewInputQuestionCount[keyof typeof InterviewInputQuestionCount];
+
+
+export const InterviewInputQuestionCount = {
+  NUMBER_3: 3,
+  NUMBER_5: 5,
+} as const;
+
+export interface InterviewInput {
+  /**
+     * @minLength 2
+     * @maxLength 120
+     */
+  roleTitle: string;
+  track: InterviewInputTrack;
+  experienceLevel: InterviewInputExperienceLevel;
+  language: InterviewInputLanguage;
+  mode: InterviewInputMode;
+  questionCount: InterviewInputQuestionCount;
+}
+
+export interface InterviewAnswerInput {
+  /**
+     * @minLength 1
+     * @maxLength 5000
+     */
+  answer: string;
+}
+
+export interface InterviewVoiceInput {
+  /** Base64-encoded browser-recorded audio. */
+  audio: string;
+}
+
+export interface InterviewEvaluation {
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  overallScore: number;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  nextSteps: string[];
+}
+
+export type InterviewSessionTrack = typeof InterviewSessionTrack[keyof typeof InterviewSessionTrack];
+
+
+export const InterviewSessionTrack = {
+  software: 'software',
+  industrial: 'industrial',
+  mechanical: 'mechanical',
+  electrical: 'electrical',
+  civil: 'civil',
+  other: 'other',
+} as const;
+
+export type InterviewSessionExperienceLevel = typeof InterviewSessionExperienceLevel[keyof typeof InterviewSessionExperienceLevel];
+
+
+export const InterviewSessionExperienceLevel = {
+  junior: 'junior',
+  mid: 'mid',
+  senior: 'senior',
+} as const;
+
+export type InterviewSessionLanguage = typeof InterviewSessionLanguage[keyof typeof InterviewSessionLanguage];
+
+
+export const InterviewSessionLanguage = {
+  ar: 'ar',
+  en: 'en',
+} as const;
+
+export type InterviewSessionMode = typeof InterviewSessionMode[keyof typeof InterviewSessionMode];
+
+
+export const InterviewSessionMode = {
+  text: 'text',
+  voice: 'voice',
+} as const;
+
+export type InterviewSessionStatus = typeof InterviewSessionStatus[keyof typeof InterviewSessionStatus];
+
+
+export const InterviewSessionStatus = {
+  active: 'active',
+  completed: 'completed',
+} as const;
+
+export interface InterviewSession {
+  id: string;
+  roleTitle: string;
+  track: InterviewSessionTrack;
+  experienceLevel: InterviewSessionExperienceLevel;
+  language: InterviewSessionLanguage;
+  mode: InterviewSessionMode;
+  questionCount: number;
+  status: InterviewSessionStatus;
+  /** @nullable */
+  currentQuestion: string | null;
+  turnNumber: number;
+  evaluation: InterviewEvaluation | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InterviewTurn {
+  id: number;
+  interviewId: string;
+  questionNumber: number;
+  question: string;
+  /** @nullable */
+  answer: string | null;
+  /** @nullable */
+  score: number | null;
+  /** @nullable */
+  feedback: string | null;
+  strengths: string[];
+  improvements: string[];
+  /** @nullable */
+  voiceReply: string | null;
+  createdAt: string;
+}
+
+export interface InterviewDetail {
+  session: InterviewSession;
+  turns: InterviewTurn[];
+}
+
+export interface InterviewAnswerResult {
+  session: InterviewSession;
+  turn: InterviewTurn;
+  /** @nullable */
+  nextQuestion: string | null;
+  evaluation: InterviewEvaluation | null;
+}
+
