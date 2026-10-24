@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './candidateCameraImage';
 export * from './error';
 export * from './healthStatus';
 export * from './interviewAnswerInput';
@@ -21,7 +22,6 @@ export * from './interviewInput';
 export * from './interviewInputExperienceLevel';
 export * from './interviewInputLanguage';
 export * from './interviewInputMode';
-export * from './interviewInputQuestionCount';
 export * from './interviewInputTrack';
 export * from './interviewSession';
 export * from './interviewSessionExperienceLevel';

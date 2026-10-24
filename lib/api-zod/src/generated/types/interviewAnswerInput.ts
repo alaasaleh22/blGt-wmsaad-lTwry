@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CandidateCameraImage } from './candidateCameraImage';
 
 export interface InterviewAnswerInput {
   /**
@@ -12,4 +13,5 @@ export interface InterviewAnswerInput {
      * @maxLength 5000
      */
   answer: string;
+  candidateImage?: CandidateCameraImage;
 }

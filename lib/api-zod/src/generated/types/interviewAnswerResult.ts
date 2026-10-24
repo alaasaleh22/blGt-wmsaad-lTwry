@@ -10,6 +10,8 @@ import type { InterviewSession } from './interviewSession';
 import type { InterviewTurn } from './interviewTurn';
 
 export interface InterviewAnswerResult {
+  /** Ephemeral neutral observation of a consented snapshot, excluded from scoring and storage. */
+  visualObservation?: string;
   session: InterviewSession;
   turn: InterviewTurn;
   /** @nullable */

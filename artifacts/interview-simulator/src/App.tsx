@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -8,7 +8,7 @@ import { ArrowLeft, ArrowUpLeft, ArrowUpRight, Check, CircleHelp, Clock3, Mic, M
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import { getGetInterviewQueryKey, useCreateInterview, useFinishInterview, useGetInterview, useSubmitInterviewAnswer } from '@workspace/api-client-react';
 import type { InterviewDetail, InterviewEvaluation, InterviewInput, InterviewSession, InterviewTurn } from '@workspace/api-client-react';
-import { InterviewRoom } from '@/components/interview-room';
+import { InterviewRoom, type CameraSnapshotHandle } from '@/components/interview-room';
 import { AvatarEmbed } from '@/components/avatar-embed';
 import { AvatarStage } from '@/components/avatar-stage';
 import { useLiveAvatar } from '@/hooks/use-live-avatar';
@@ -100,7 +100,7 @@ function Home() {
               <RadioChoice name="mode" value="voice" selected={mode} label="صوت مع كاميرا اختيارية" onChange={(value) => setMode(value as InterviewInput['mode'])} testId="mode-voice" />
               <RadioChoice name="mode" value="text" selected={mode} label="كتابي" onChange={(value) => setMode(value as InterviewInput['mode'])} testId="mode-text" />
             </div></fieldset>
-            <div className="field"><label htmlFor="questionCount">عدد الأسئلة</label><select id="questionCount" value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value) as InterviewInput['questionCount'])} data-testid="select-question-count">{[15, 16, 17, 18, 19, 20].map((n) => <option key={n} value={n}>{n} سؤالاً{n === 20 ? ' · مقابلة كاملة' : ''}</option>)}</select></div>
+            <div className="field"><label htmlFor="questionCount">عدد الأسئلة (1–20)</label><select id="questionCount" value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value) as InterviewInput['questionCount'])} data-testid="select-question-count">{Array.from({ length: 20 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n} سؤالاً{n === 20 ? ' · مقابلة كاملة' : ''}</option>)}</select></div>
           </div>
           {createInterview.isError && <div role="alert" className="voice-transcript" data-testid="error-create-session">تعذّر بدء الجلسة. تحقق من الاتصال وحاول مرة أخرى.</div>}
           <div className="submit-row"><span className="subtle" data-testid="text-session-privacy">جلسة خاصة · يمكنك العودة إليها لاحقاً</span>
@@ -132,7 +132,13 @@ function SessionRoute() {
 function Session({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const interview = useGetInterview(id, { query: { enabled: !!id, queryKey: getGetInterviewQueryKey(id), retry: 1 } });
-  const submitAnswer = useSubmitInterviewAnswer();
+  const submitAnswer = useSubmitInterviewAnswer({
+    mutation: {
+      onSettled: (_data, _error, variables) => {
+        delete variables.data.candidateImage;
+      },
+    },
+  });
   const finishInterview = useFinishInterview();
   const [answer, setAnswer] = useState('');
   const [voiceError, setVoiceError] = useState('');
@@ -145,6 +151,40 @@ function Session({ id }: { id: string }) {
   const avatar = useLiveAvatar(id);
   const avatarRef = useRef(avatar);
   avatarRef.current = avatar;
+  const cameraRef = useRef<CameraSnapshotHandle>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [visionOn, setVisionOn] = useState(false);
+  const [visionError, setVisionError] = useState('');
+  const [visionSent, setVisionSent] = useState(false);
+  const [observation, setObservation] = useState('');
+  const [isCapturing, setIsCapturing] = useState(false);
+  const visionOnRef = useRef(false);
+  visionOnRef.current = visionOn;
+  const recordingQuestionRef = useRef<number | null>(null);
+  const [pendingVoice, setPendingVoice] = useState<{ blob: Blob; qn: number | null } | null>(null);
+  const voiceCommittedRef = useRef(false);
+  const onCameraReadyChange = useCallback((ready: boolean) => {
+    setCameraReady(ready);
+    if (!ready) { setVisionOn(false); setObservation(''); setVisionSent(false); }
+  }, []);
+  /** One still snapshot only when sharing is enabled; throws so a failed capture never silently uploads. */
+  const captureIfEnabled = async (english: boolean): Promise<string | undefined> => {
+    setObservation(''); setVisionError(''); setVisionSent(false);
+    if (!visionOnRef.current) return undefined;
+    setIsCapturing(true);
+    try {
+      const img = await cameraRef.current?.getSnapshot();
+      if (!img || img.length > 1_000_000) throw new Error('bad image');
+      setVisionSent(true);
+      return img;
+    } catch {
+      const msg = english ? 'Could not capture the camera snapshot, so the answer was not sent. Try again or turn snapshot sharing off.' : 'تعذّر التقاط صورة الكاميرا، فلم تُرسل الإجابة. أعد المحاولة أو أوقف مشاركة اللقطة.';
+      setVisionError(msg);
+      throw new Error(msg);
+    } finally {
+      setIsCapturing(false);
+    }
+  };
   const readingQuestionRef = useRef(false);
   const forwardedRef = useRef(false);
   const [isReadingQuestion, setIsReadingQuestion] = useState(false);
@@ -152,6 +192,7 @@ function Session({ id }: { id: string }) {
     workletPath: `${import.meta.env.BASE_URL}audio-playback-worklet.js`,
     onUserTranscript: (text: string) => { if (readingQuestionRef.current) return; setVoiceTranscript(text); setAnswer(text); },
     onTranscript: (_: string, full: string) => setVoiceStatus(full),
+    onVisualContext: (text: string) => setObservation(text),
     onAudioChunk: (base64: string): boolean => {
       const ok = avatarRef.current.sendAudio(base64);
       if (ok) forwardedRef.current = true;
@@ -160,6 +201,7 @@ function Session({ id }: { id: string }) {
     onComplete: () => {
       if (forwardedRef.current) { forwardedRef.current = false; avatarRef.current.finishSpeech(); }
       if (readingQuestionRef.current) { readingQuestionRef.current = false; setVoiceStatus(''); return; }
+      voiceCommittedRef.current = true;
       setVoiceStatus('');
       setVoiceError('');
       setAnswer('');
@@ -209,10 +251,14 @@ function Session({ id }: { id: string }) {
     queryClient.setQueryData(getGetInterviewQueryKey(id), next);
     void queryClient.invalidateQueries({ queryKey: getGetInterviewQueryKey(id) });
   };
-  const sendTextAnswer = () => {
-    if (!answer.trim() || !session || isVoiceProcessing || isStartingRecording || recorder.state === 'recording' || submitAnswer.isPending || finishInterview.isPending) return;
-    submitAnswer.mutate({ id, data: { answer: answer.trim() } }, {
+  const sendTextAnswer = async () => {
+    if (!answer.trim() || !session || isCapturing || isVoiceProcessing || isStartingRecording || recorder.state === 'recording' || submitAnswer.isPending || finishInterview.isPending) return;
+    let candidateImage: string | undefined;
+    try { candidateImage = await captureIfEnabled(isEnglish); } catch { return; }
+    submitAnswer.mutate({ id, data: { answer: answer.trim(), ...(candidateImage ? { candidateImage } : {}) } }, {
       onSuccess: (result) => {
+        const vo = (result as { visualObservation?: string | null }).visualObservation;
+        if (vo) setObservation(vo);
         const current = queryClient.getQueryData<InterviewDetail>(getGetInterviewQueryKey(id));
         const turns = [...(current?.turns ?? [])];
         const at = turns.findIndex((turn) => turn.id === result.turn.id);
@@ -230,6 +276,7 @@ function Session({ id }: { id: string }) {
     setVoiceStatus('');
     setVoiceError(''); setRecordingFailed(false); setVoiceTranscript('');
     try {
+      recordingQuestionRef.current = session?.turnNumber ?? null;
       await recorder.startRecording();
       avatar.setListening(true);
     } catch {
@@ -239,21 +286,50 @@ function Session({ id }: { id: string }) {
       setIsStartingRecording(false);
     }
   };
-  const endRecording = async () => {
-    if (isVoiceProcessing || recorder.state !== 'recording') return;
+  const sendVoiceBlob = async (blob: Blob, qn: number | null) => {
+    if (qn !== null && session && session.turnNumber !== qn) {
+      setPendingVoice(null);
+      setVoiceError(isEnglish ? 'This recording belongs to an earlier question and was not sent.' : 'هذا التسجيل يخص سؤالًا سابقًا ولم يُرسل.');
+      return;
+    }
+    setPendingVoice({ blob, qn });
     setIsVoiceProcessing(true);
+    setVoiceError('');
+    voiceCommittedRef.current = false;
     try {
-      const blob = await recorder.stopRecording();
-      avatar.setListening(false);
-      if (!blob.size) throw new Error(isEnglish ? 'No audio was recorded.' : 'لم يتم تسجيل صوت.');
+      const candidateImage = await captureIfEnabled(isEnglish);
       setVoiceStatus(isEnglish ? 'Transcribing and preparing feedback…' : 'جارٍ تحويل الصوت وتجهيز الملاحظات…');
-      await stream.streamVoiceResponse(`/api/interviews/${encodeURIComponent(id)}/voice-turn`, blob);
+      await stream.streamVoiceResponse(`/api/interviews/${encodeURIComponent(id)}/voice-turn`, blob, { ...(qn !== null ? { expectedQuestionNumber: qn } : {}), ...(candidateImage ? { candidateImage } : {}) });
+      if (voiceCommittedRef.current) setPendingVoice(null);
+      else setVoiceError(isEnglish ? 'The answer was not confirmed. Retry or discard the recording.' : 'لم يُؤكَّد حفظ الإجابة. أعد الإرسال أو تجاهل التسجيل.');
     } catch (error) {
-      setVoiceError(error instanceof Error ? error.message : (isEnglish ? 'Voice request failed.' : 'تعذّر إرسال التسجيل.'));
+      const msg = error instanceof Error ? error.message : '';
+      if (/\(409\b/.test(msg)) {
+        setPendingVoice(null);
+        setVoiceError(isEnglish ? 'The current question changed before this recording was sent, so it was not counted. Please record again for the new question.' : 'تغيّر السؤال الحالي قبل إرسال التسجيل فلم يُحتسب. سجّل إجابتك للسؤال الجديد.');
+        void queryClient.invalidateQueries({ queryKey: getGetInterviewQueryKey(id) });
+      } else {
+        setVoiceError(msg || (isEnglish ? 'Voice request failed.' : 'تعذّر إرسال التسجيل.'));
+      }
     } finally {
       setIsVoiceProcessing(false);
       setVoiceStatus('');
     }
+  };
+  const endRecording = async () => {
+    if (isVoiceProcessing || recorder.state !== 'recording') return;
+    setIsVoiceProcessing(true);
+    let blob: Blob;
+    try {
+      blob = await recorder.stopRecording();
+      avatar.setListening(false);
+      if (!blob.size) throw new Error(isEnglish ? 'No audio was recorded.' : 'لم يتم تسجيل صوت.');
+    } catch (error) {
+      setVoiceError(error instanceof Error ? error.message : (isEnglish ? 'Voice request failed.' : 'تعذّر إرسال التسجيل.'));
+      setIsVoiceProcessing(false);
+      return;
+    }
+    await sendVoiceBlob(blob, recordingQuestionRef.current);
   };
 
   if (interview.isLoading) return <div className="app-shell"><Header /><main className="session-content"><div className="panel loading-card" data-testid="status-session-loading"><div className="skeleton loading-line" style={{ width: '40%' }} /><div className="skeleton loading-line" style={{ height: 42, width: '80%' }} /><div className="skeleton loading-line" style={{ height: 150 }} /></div><div className="panel loading-card"><div className="skeleton loading-line" /><div className="skeleton loading-line" /></div></main></div>;
@@ -269,7 +345,7 @@ function Session({ id }: { id: string }) {
   const stage = stageLabels[stageFor(questionOrdinal, session.questionCount)];
   const roomPhase = recorder.state === 'recording' ? 'listening' : (stream.playbackState === 'playing' || (avatar.ready && (avatar.speaking || avatar.agentState === 'talking'))) ? 'speaking' : (isVoiceProcessing || isStartingRecording) ? 'processing' : 'idle';
   const direction = isEnglish ? 'ltr' : 'rtl';
-  const mutationPending = submitAnswer.isPending || finishInterview.isPending || isVoiceProcessing || isStartingRecording || recorder.state === 'recording' || isReadingQuestion;
+  const mutationPending = isCapturing || submitAnswer.isPending || finishInterview.isPending || isVoiceProcessing || isStartingRecording || recorder.state === 'recording' || isReadingQuestion;
 
   return <div className="app-shell session-page" dir={direction}>
     <Header />
@@ -282,7 +358,17 @@ function Session({ id }: { id: string }) {
           <span className="stage-pill" data-testid="text-question-stage">{isEnglish ? stage.en : stage.ar}</span>
           <h2 data-testid="text-current-question">{currentQuestion || (isEnglish ? 'Your next question is being prepared…' : 'يجري إعداد السؤال التالي…')}</h2>
           <p className="coach-hint" data-testid="text-answer-hint">{copy.hint}</p>
-          {session.mode === 'voice' && <InterviewRoom english={isEnglish} phase={roomPhase} stageLabel={isEnglish ? stage.en : stage.ar} active={session.status === 'active'} interviewer={<AvatarStage interviewId={id} avatar={avatar} english={isEnglish} onStart={(input) => void avatar.start(input, () => void readQuestionRef.current())} onReadQuestion={() => void readQuestion()} readDisabled={isReadingQuestion || isVoiceProcessing || recorder.state === 'recording' || !currentQuestion} />} />}
+          <InterviewRoom english={isEnglish} phase={roomPhase} stageLabel={isEnglish ? stage.en : stage.ar} active={session.status === 'active'} interviewer={<AvatarStage interviewId={id} avatar={avatar} english={isEnglish} onStart={(input) => void avatar.start(input, () => void readQuestionRef.current())} onReadQuestion={() => void readQuestion()} readDisabled={isReadingQuestion || isVoiceProcessing || recorder.state === 'recording' || !currentQuestion} />} cameraRef={cameraRef} onCameraReadyChange={onCameraReadyChange} sharing={visionOn} />
+          {<section className="voice-box" data-testid="panel-vision-consent">
+            <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', opacity: cameraReady ? 1 : 0.55 }}>
+              <input type="checkbox" role="switch" checked={visionOn} disabled={!cameraReady || mutationPending} onChange={(e) => { setVisionOn(e.target.checked); setObservation(''); setVisionError(''); setVisionSent(false); }} data-testid="vision-toggle" />
+              <span><strong>{isEnglish ? 'Send one still photo with each answer' : 'أرسل صورة ثابتة واحدة مع كل إجابة'}</strong><br /><span className="subtle">{cameraReady
+                ? (isEnglish ? 'When on, a single snapshot is taken at the moment you submit and sent with that answer to the AI service, which only notes job-relevant visible materials. No continuous video, no face/appearance/emotion grading, nothing sent to the video interviewer, nothing stored by the app. Scores do not use the camera.' : 'عند التفعيل تُلتقط لقطة واحدة لحظة الإرسال وتُرسل مع الإجابة إلى خدمة الذكاء الاصطناعي لملاحظة المواد المرئية المتعلقة بالعمل فقط. لا فيديو مستمر، ولا تقييم للوجه أو المظهر أو المشاعر، ولا تُرسل للمحاور المرئي، ولا يحتفظ التطبيق بالصور. الدرجات لا تعتمد على الكاميرا.')
+                : (isEnglish ? 'Turn on your camera first to enable this. It stays off by default.' : 'شغّل الكاميرا أولًا لتفعيل هذا الخيار. الخيار مطفأ افتراضيًا.')}</span></span>
+            </label>
+            {(visionOn || visionError) && <p className="voice-transcript" role={visionError ? 'alert' : 'status'} data-testid="vision-status">{visionError || (isCapturing ? (isEnglish ? 'Capturing snapshot…' : 'نلتقط الصورة…') : visionSent ? (isEnglish ? 'One snapshot was sent with your last answer.' : 'أُرسلت لقطة واحدة مع آخر إجابة.') : (isEnglish ? 'On: one snapshot will be sent with your next answer.' : 'مفعّل: ستُرسل لقطة واحدة مع إجابتك التالية.'))}</p>}
+            {observation && <p className="voice-transcript" data-testid="vision-observation"><strong>{isEnglish ? 'Snapshot note (temporary, not scored)' : 'ملاحظة من اللقطة (مؤقتة، لا تؤثر على الدرجة)'}:</strong> {observation}</p>}
+          </section>}
           {session.mode === 'voice' && <section className="voice-box" data-testid="panel-voice-practice">
             <div className="voice-head"><strong>{copy.voice}</strong><span className="voice-status" aria-live="polite" data-testid="status-voice">{recorder.state === 'recording' ? <><i className="status-dot live" />{isEnglish ? 'Recording' : 'يسجّل الآن'}</> : isStartingRecording ? (isEnglish ? 'Requesting microphone access…' : 'جارٍ طلب إذن الميكروفون…') : voiceStatus ? <><i className="status-dot" />{voiceStatus}</> : <><i className="status-dot" />{copy.permission}</>}</span></div>
             <div className="voice-controls">{recorder.state === 'recording'
@@ -292,11 +378,15 @@ function Session({ id }: { id: string }) {
             </div>
             {voiceTranscript && <p className="voice-transcript" data-testid="text-voice-transcript">{voiceTranscript}</p>}
             {(voiceError || recordingFailed) && <p className="voice-transcript" role="alert" data-testid="error-voice">{voiceError || copy.fallback}</p>}
+            {pendingVoice && !isVoiceProcessing && recorder.state !== 'recording' && <div className="voice-controls" data-testid="panel-voice-retry">
+              <button className="record-btn" onClick={() => void sendVoiceBlob(pendingVoice.blob, pendingVoice.qn)} disabled={mutationPending || (pendingVoice.qn !== null && pendingVoice.qn !== session.turnNumber)} data-testid="button-retry-voice">{isEnglish ? 'Retry sending recording' : 'أعد إرسال التسجيل'}</button>
+              <button className="quiet-btn" onClick={() => { setPendingVoice(null); setVoiceError(''); }} data-testid="button-discard-voice">{isEnglish ? 'Discard recording' : 'تجاهل التسجيل'}</button>
+            </div>}
           </section>}
           <div className="field" style={{ marginTop: 22 }}><label htmlFor="answer">{copy.answer}</label><textarea id="answer" className="answer-box" maxLength={5000} value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder={copy.placeholder} data-testid="input-answer" /></div>
           {recorder.state === 'recording' && <p className="subtle" data-testid="text-recording-hint">{isEnglish ? 'Stop and send your recording, or cancel it to submit a written answer.' : 'أوقف التسجيل لإرساله، أو ألغِه لإرسال إجابة مكتوبة.'}</p>}
           {submitAnswer.isError && <p className="voice-transcript" role="alert" data-testid="error-submit-answer">{isEnglish ? 'Your answer was not submitted. Please try again.' : 'لم تُرسل إجابتك. حاول مرة أخرى.'}</p>}
-          <div className="answer-toolbar"><span className="subtle" data-testid="text-answer-counter">{answer.length} / 5000</span><div className="answer-actions"><button className="primary-btn" onClick={sendTextAnswer} disabled={!answer.trim() || mutationPending} data-testid="button-submit-answer">{submitAnswer.isPending ? copy.submitting : <>{copy.send} <Send size={15} /></>}</button></div></div>
+          <div className="answer-toolbar"><span className="subtle" data-testid="text-answer-counter">{answer.length} / 5000</span><div className="answer-actions"><button className="primary-btn" onClick={() => void sendTextAnswer()} disabled={!answer.trim() || mutationPending} data-testid="button-submit-answer">{submitAnswer.isPending ? copy.submitting : <>{copy.send} <Send size={15} /></>}</button></div></div>
         </section>
          {latestAnsweredTurn && <section className="panel turn-review" data-testid={`card-feedback-${latestAnsweredTurn.id}`}><div className="review-score">{latestAnsweredTurn.score !== null ? `${latestAnsweredTurn.score} / 100` : ''}</div><h3>{isEnglish ? 'Feedback on your last answer' : 'ملاحظات على إجابتك السابقة'}</h3><p><strong>{isEnglish ? 'Your answer' : 'إجابتك'}:</strong> {latestAnsweredTurn.answer}</p>{latestAnsweredTurn.feedback && <p>{latestAnsweredTurn.feedback}</p>}{latestAnsweredTurn.voiceReply && <p><strong>{isEnglish ? 'Interviewer' : 'المحاور'}:</strong> {latestAnsweredTurn.voiceReply}</p>}{latestAnsweredTurn.strengths.length > 0 && <p><strong>{isEnglish ? 'Strengths' : 'نقاط القوة'}:</strong> {latestAnsweredTurn.strengths.join(' · ')}</p>}{latestAnsweredTurn.improvements.length > 0 && <p><strong>{isEnglish ? 'To improve' : 'للتطوير'}:</strong> {latestAnsweredTurn.improvements.join(' · ')}</p>}</section>}
       </div>

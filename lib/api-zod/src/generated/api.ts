@@ -100,15 +100,17 @@ export const GetReportResponse = zod.object({
 export const createInterviewBodyRoleTitleMin = 2;
 export const createInterviewBodyRoleTitleMax = 120;
 
+export const createInterviewBodyQuestionCountMax = 20;
+
 
 
 export const CreateInterviewBody = zod.object({
   "roleTitle": zod.string().min(createInterviewBodyRoleTitleMin).max(createInterviewBodyRoleTitleMax),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'electrical_technology', 'electrical_trades', 'electronics', 'automation', 'hvac', 'automotive', 'energy', 'occupational_safety', 'oil_gas', 'agriculture', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),
-  "questionCount": zod.union([zod.literal(15),zod.literal(16),zod.literal(17),zod.literal(18),zod.literal(19),zod.literal(20)])
+  "questionCount": zod.number().int().min(1).max(createInterviewBodyQuestionCountMax)
 })
 
 export const createInterviewResponseSessionEvaluationOneOverallScoreMin = 0;
@@ -120,7 +122,7 @@ export const CreateInterviewResponse = zod.object({
   "session": zod.object({
   "id": zod.string().uuid(),
   "roleTitle": zod.string(),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'electrical_technology', 'electrical_trades', 'electronics', 'automation', 'hvac', 'automotive', 'energy', 'occupational_safety', 'oil_gas', 'agriculture', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),
@@ -170,7 +172,7 @@ export const GetInterviewResponse = zod.object({
   "session": zod.object({
   "id": zod.string().uuid(),
   "roleTitle": zod.string(),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'electrical_technology', 'electrical_trades', 'electronics', 'automation', 'hvac', 'automotive', 'energy', 'occupational_safety', 'oil_gas', 'agriculture', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),
@@ -213,10 +215,15 @@ export const SubmitInterviewAnswerParams = zod.object({
 
 export const submitInterviewAnswerBodyAnswerMax = 5000;
 
+export const submitInterviewAnswerBodyCandidateImageMax = 1000000;
+
+
+export const submitInterviewAnswerBodyCandidateImageRegExp = new RegExp('^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$');
 
 
 export const SubmitInterviewAnswerBody = zod.object({
-  "answer": zod.string().min(1).max(submitInterviewAnswerBodyAnswerMax)
+  "answer": zod.string().min(1).max(submitInterviewAnswerBodyAnswerMax),
+  "candidateImage": zod.string().max(submitInterviewAnswerBodyCandidateImageMax).regex(submitInterviewAnswerBodyCandidateImageRegExp).optional().describe('Optional consented JPEG snapshot sent with this answer only. Never persisted by the application.')
 })
 
 export const submitInterviewAnswerResponseSessionEvaluationOneOverallScoreMin = 0;
@@ -228,10 +235,11 @@ export const submitInterviewAnswerResponseEvaluationOneOverallScoreMax = 100;
 
 
 export const SubmitInterviewAnswerResponse = zod.object({
+  "visualObservation": zod.string().optional().describe('Ephemeral neutral observation of a consented snapshot, excluded from scoring and storage.'),
   "session": zod.object({
   "id": zod.string().uuid(),
   "roleTitle": zod.string(),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'electrical_technology', 'electrical_trades', 'electronics', 'automation', 'hvac', 'automotive', 'energy', 'occupational_safety', 'oil_gas', 'agriculture', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),
@@ -338,12 +346,17 @@ export const SendInterviewVoiceTurnParams = zod.object({
   "id": zod.coerce.string().uuid()
 })
 
+export const sendInterviewVoiceTurnBodyCandidateImageMax = 1000000;
+
+
+export const sendInterviewVoiceTurnBodyCandidateImageRegExp = new RegExp('^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$');
 export const sendInterviewVoiceTurnBodyExpectedQuestionNumberMax = 20;
 
 
 
 export const SendInterviewVoiceTurnBody = zod.object({
   "audio": zod.string().describe('Base64-encoded browser or phone recording.'),
+  "candidateImage": zod.string().max(sendInterviewVoiceTurnBodyCandidateImageMax).regex(sendInterviewVoiceTurnBodyCandidateImageRegExp).optional().describe('Optional consented JPEG snapshot sent with this answer only. Never persisted by the application.'),
   "expectedQuestionNumber": zod.number().int().min(1).max(sendInterviewVoiceTurnBodyExpectedQuestionNumberMax).optional().describe('The original question being answered; prevents a retried recording from answering a later question.')
 })
 
@@ -366,7 +379,7 @@ export const FinishInterviewResponse = zod.object({
   "session": zod.object({
   "id": zod.string().uuid(),
   "roleTitle": zod.string(),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'electrical_technology', 'electrical_trades', 'electronics', 'automation', 'hvac', 'automotive', 'energy', 'occupational_safety', 'oil_gas', 'agriculture', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),

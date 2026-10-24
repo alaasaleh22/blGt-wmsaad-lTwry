@@ -420,7 +420,7 @@ components:
           maxLength: 120
         track:
           type: string
-          enum: [software, industrial, mechanical, electrical, civil, healthcare, education, business, finance, sales, hospitality, logistics, skilled_trades, legal, media, science, other]
+          enum: [software, industrial, mechanical, electrical, electrical_technology, electrical_trades, electronics, automation, hvac, automotive, energy, occupational_safety, oil_gas, agriculture, civil, healthcare, education, business, finance, sales, hospitality, logistics, skilled_trades, legal, media, science, other]
         experienceLevel:
           type: string
           enum: [junior, mid, senior]
@@ -432,7 +432,8 @@ components:
           enum: [text, voice]
         questionCount:
           type: integer
-          enum: [15, 16, 17, 18, 19, 20]
+          minimum: 1
+          maximum: 20
       required: [roleTitle, track, experienceLevel, language, mode, questionCount]
     InterviewAnswerInput:
       type: object
@@ -441,7 +442,14 @@ components:
           type: string
           minLength: 1
           maxLength: 5000
+        candidateImage:
+          $ref: "#/components/schemas/CandidateCameraImage"
       required: [answer]
+    CandidateCameraImage:
+      type: string
+      maxLength: 1000000
+      pattern: '^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$'
+      description: Optional consented JPEG snapshot sent with this answer only. Never persisted by the application.
     InterviewAvatarOptions:
       type: object
       properties:
@@ -488,6 +496,8 @@ components:
         audio:
           type: string
           description: Base64-encoded browser or phone recording.
+        candidateImage:
+          $ref: "#/components/schemas/CandidateCameraImage"
         expectedQuestionNumber:
           type: integer
           minimum: 1
@@ -526,7 +536,7 @@ components:
           type: string
         track:
           type: string
-          enum: [software, industrial, mechanical, electrical, civil, healthcare, education, business, finance, sales, hospitality, logistics, skilled_trades, legal, media, science, other]
+          enum: [software, industrial, mechanical, electrical, electrical_technology, electrical_trades, electronics, automation, hvac, automotive, energy, occupational_safety, oil_gas, agriculture, civil, healthcare, education, business, finance, sales, hospitality, logistics, skilled_trades, legal, media, science, other]
         experienceLevel:
           type: string
           enum: [junior, mid, senior]
@@ -625,6 +635,9 @@ components:
     InterviewAnswerResult:
       type: object
       properties:
+        visualObservation:
+          type: string
+          description: Ephemeral neutral observation of a consented snapshot, excluded from scoring and storage.
         session:
           $ref: "#/components/schemas/InterviewSession"
         turn:

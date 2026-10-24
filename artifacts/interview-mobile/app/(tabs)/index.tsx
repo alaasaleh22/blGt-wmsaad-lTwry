@@ -12,7 +12,7 @@ import { useBookmarks } from '@/lib/bookmarks';
 import { F } from '@/lib/fonts';
 
 type Count = InterviewInput['questionCount'];
-const COUNTS: Count[] = [15, 16, 17, 18, 19, 20];
+const COUNTS: Count[] = Array.from({ length: 20 }, (_, i) => i + 1);
 
 export default function SetupScreen() {
   const c = useColors();
@@ -21,6 +21,9 @@ export default function SetupScreen() {
   const { upsert } = useBookmarks();
   const create = useCreateInterview();
   const [track, setTrack] = useState<TrackKey>('software');
+  const [search, setSearch] = useState('');
+  const q = search.trim();
+  const shownCats = q ? professionCatalog.filter((p) => p.label.includes(q) || p.en.toLowerCase().includes(q.toLowerCase()) || p.jobs.some((j) => j.includes(q))) : professionCatalog;
   const [role, setRole] = useState('مهندس برمجيات');
   const [level, setLevel] = useState<InterviewInput['experienceLevel']>('mid');
   const [lang, setLang] = useState<InterviewInput['language']>('ar');
@@ -69,8 +72,14 @@ export default function SetupScreen() {
       </View>
 
       <Section n="01" title="المجال">
+        <View style={[st.inputWrap, { marginTop: 0, marginBottom: 10, borderColor: c.border, backgroundColor: c.card, flexDirection: ROW }]}>
+          <Feather name="search" size={16} color={c.mutedForeground} />
+          <TextInput testID="profession-search" value={search} onChangeText={setSearch} placeholder="ابحث عن مجال أو وظيفة" placeholderTextColor={c.mutedForeground}
+            style={[st.input, { color: c.foreground, fontFamily: F.medium }]} />
+        </View>
+        {q && shownCats.length === 0 ? <T size={12} color={c.mutedForeground} style={{ marginBottom: 6 }}>لا نتائج — اكتب المسمى في الحقل المخصص أدناه.</T> : null}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2, flexDirection: ROW }}>
-          {professionCatalog.map((p) => (
+          {shownCats.map((p) => (
             <Chip key={p.key} testID={'track-' + p.key} label={p.label} icon={p.icon as React.ComponentProps<typeof Feather>['name']} on={track === p.key}
               onPress={() => { setTrack(p.key); setRole(p.jobs[0]); }} />
           ))}
@@ -100,9 +109,9 @@ export default function SetupScreen() {
         <Segmented testPrefix="mode" value={mode} onChange={setMode} options={[{ value: 'voice', label: 'بالصوت' }, { value: 'text', label: 'بالكتابة' }]} />
         <View style={{ height: 16 }} />
         <Label>عدد الأسئلة</Label>
-        <View style={[{ flexDirection: ROW, gap: 6 }]}>
+        <View style={{ flexDirection: ROW, flexWrap: 'wrap', gap: 8 }}>
           {COUNTS.map((n) => (
-            <View key={n} style={{ flex: 1 }}>
+            <View key={n} style={{ width: '18%', flexGrow: 1 }}>
               <Chip testID={'count-' + n} label={String(n)} on={count === n} onPress={() => setCount(n)} />
             </View>
           ))}

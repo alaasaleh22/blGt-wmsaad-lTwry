@@ -20,3 +20,9 @@ Use the video provider as a receive-only renderer for generated interviewer audi
 **Why:** A provider-managed conversation would create a second independent interview and could bypass the selected question count and saved feedback. Native WebRTC dependencies also require compatibility checks before using them in Expo Go; an isolated media WebView is a deliberate fallback, not a whole-app wrapper.
 
 **How to apply:** Do not publish the candidate's camera or microphone to the avatar room. Check provider sandbox limits and spending consent before enabling long sessions; a free one-minute video trial is not a full 15–20-question video interview.
+
+The user explicitly allowed the AI interviewer to see their picture. Visual awareness uses an optional still snapshot with an answer, not continuous camera transmission.
+
+**Why:** This adds the requested camera awareness while minimizing disclosure and keeping professional scoring independent of appearance.
+
+**How to apply:** Keep sharing off until explicitly enabled in the session. Explain that the snapshot is sent to the AI service, not the avatar room. Do not persist images, including in retained client mutation variables; discard temporary capture files. Keep the scorer blind to images and their descriptions.

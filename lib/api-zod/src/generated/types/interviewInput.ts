@@ -8,7 +8,6 @@
 import type { InterviewInputExperienceLevel } from './interviewInputExperienceLevel';
 import type { InterviewInputLanguage } from './interviewInputLanguage';
 import type { InterviewInputMode } from './interviewInputMode';
-import type { InterviewInputQuestionCount } from './interviewInputQuestionCount';
 import type { InterviewInputTrack } from './interviewInputTrack';
 
 export interface InterviewInput {
@@ -21,5 +20,9 @@ export interface InterviewInput {
   experienceLevel: InterviewInputExperienceLevel;
   language: InterviewInputLanguage;
   mode: InterviewInputMode;
-  questionCount: InterviewInputQuestionCount;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  questionCount: number;
 }

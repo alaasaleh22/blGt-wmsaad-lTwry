@@ -17,7 +17,7 @@ import {
 } from '@workspace/api-client-react';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 import AvatarTransport from '@/components/AvatarTransport';
-import { SelfView } from '@/components/SelfView';
+import { SelfView, type SelfViewHandle } from '@/components/SelfView';
 import { Btn, Card, ErrorState, Pulse, ROW, Skeleton, T, errMsg, useInsets } from '@/components/ui';
 import { useColors } from '@/hooks/useColors';
 import { useAvatarSession } from '@/hooks/useAvatarSession';
@@ -41,7 +41,14 @@ export default function SessionScreen() {
   const q = useGetInterview(id, { query: { enabled: !!id, queryKey: key } });
   const session = q.data?.session;
   const opts = useGetInterviewAvatarOptions(id, { query: { enabled: !!id, queryKey: getGetInterviewAvatarOptionsQueryKey(id) } });
-  const submit = useSubmitInterviewAnswer();
+  const submit = useSubmitInterviewAnswer({
+    mutation: {
+      onSettled: (_data, _error, variables) => {
+        // MutationCache retains variables even after unmount; discard the processed image.
+        delete variables.data.candidateImage;
+      },
+    },
+  });
   const finish = useFinishInterview();
 
   const [inputMode, setInputMode] = useState<'voice' | 'text' | null>(null);
@@ -62,6 +69,33 @@ export default function SessionScreen() {
   const [finishErr, setFinishErr] = useState<string | null>(null);
   const [acceptCharges, setAcceptCharges] = useState(false);
   const [paidAvatarId, setPaidAvatarId] = useState<string | null>(null);
+  const selfRef = useRef<SelfViewHandle>(null);
+  const [camReady, setCamReady] = useState(false);
+  const [visionOn, setVisionOn] = useState(false);
+  const [visionStatus, setVisionStatus] = useState<'idle' | 'capturing' | 'sent' | 'error'>('idle');
+  const [observation, setObservation] = useState('');
+  const visionOnRef = useRef(false);
+  visionOnRef.current = visionOn;
+  const onCamReady = useCallback((r: boolean) => {
+    setCamReady(r);
+    if (!r) { setVisionOn(false); setObservation(''); setVisionStatus('idle'); }
+  }, []);
+  /** Returns one still snapshot when (and only when) the user enabled sharing. Throws on failure so nothing is sent silently. */
+  const captureIfEnabled = async (): Promise<string | undefined> => {
+    setObservation('');
+    if (!visionOnRef.current) { setVisionStatus('idle'); return undefined; }
+    setVisionStatus('capturing');
+    try {
+      const img = await selfRef.current?.snapshot();
+      if (!img) throw new Error('no image');
+      if (img.length > 1_000_000) throw new Error('too large');
+      setVisionStatus('sent');
+      return img;
+    } catch {
+      setVisionStatus('error');
+      throw new Error('تعذّر التقاط صورة الكاميرا، فلم تُرسل الإجابة. أعد المحاولة أو أوقف مشاركة الصورة.');
+    }
+  };
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recStateRef = useRef<RecState>('idle');
@@ -169,9 +203,11 @@ export default function SessionScreen() {
     setRecState('processing'); setVoiceErr(null); setInterviewerText(''); setFailedTranscript('');
     let heard = '';
     try {
+      const candidateImage = await captureIfEnabled();
       const audio = await readRecordingBase64(uri);
       if (!audio) throw new Error('التسجيل فارغ. سجّل مرة أخرى.');
-      await runAudioStream('answer', '/api/interviews/' + encodeURIComponent(id) + '/voice-turn', { audio, expectedQuestionNumber: qn }, (ev) => {
+      await runAudioStream('answer', '/api/interviews/' + encodeURIComponent(id) + '/voice-turn', { audio, expectedQuestionNumber: qn, ...(candidateImage ? { candidateImage } : {}) }, (ev) => {
+        if (ev.type === 'visual_context' && ev.data) setObservation(ev.data);
         if (ev.type === 'user_transcript' && ev.data) { heard = ev.data; setUserTranscript(ev.data); }
         if (ev.type === 'transcript' && ev.data) setInterviewerText((p) => p + ev.data);
       });
@@ -268,13 +304,23 @@ export default function SessionScreen() {
   }, []);
 
   // ---------- text ----------
-  const submitText = () => {
+  const [capturingText, setCapturingText] = useState(false);
+  const submitText = async () => {
     const answer = draft.trim();
     if (!answer) { setTextErr('اكتب إجابتك أولًا.'); return; }
+    if (capturingText || submit.isPending) return;
     setTextErr(null);
     stopQuestionAudio();
-    submit.mutate({ id, data: { answer } }, {
+    let candidateImage: string | undefined;
+    setCapturingText(true);
+    try { candidateImage = await captureIfEnabled(); }
+    catch (e) { setTextErr(errMsg(e)); return; }
+    finally { setCapturingText(false); }
+    if (!mountedRef.current) return;
+    submit.mutate({ id, data: { answer, ...(candidateImage ? { candidateImage } : {}) } }, {
       onSuccess: (res) => {
+        const vo = (res as { visualObservation?: string | null }).visualObservation;
+        if (vo) setObservation(vo);
         qc.setQueryData<InterviewDetail>(key, (old) => {
           if (!old) return old;
           const others = old.turns.filter((t) => t.id !== res.turn.id);
@@ -289,7 +335,7 @@ export default function SessionScreen() {
     });
   };
 
-  const finishBlocked = recState !== 'idle' || perm === 'requesting' || submit.isPending;
+  const finishBlocked = recState !== 'idle' || perm === 'requesting' || submit.isPending || capturingText;
   const doFinish = () => {
     if (finishBlocked) return;
     if (!confirmFinish) { setConfirmFinish(true); return; }
@@ -463,7 +509,7 @@ export default function SessionScreen() {
             </Pressable>
           ) : null}
 
-          <View style={st.pip}><SelfView /></View>
+          <View style={st.pip}><SelfView ref={selfRef} onReadyChange={onCamReady} /></View>
         </View>
 
         {/* question */}
@@ -486,6 +532,33 @@ export default function SessionScreen() {
               disabled={busyVoice || submit.isPending} onPress={() => setInputMode(mode === 'voice' ? 'text' : 'voice')} />
           </View>
           {readErr ? <T size={12} color={c.danger} style={{ marginTop: 6 }}>{readErr}</T> : null}
+        </View>
+
+        {/* opt-in still snapshot per answer */}
+        <View style={[st.vision, { backgroundColor: c.card, borderColor: visionOn ? c.amber : c.border }]}>
+          <Pressable testID="vision-toggle" disabled={!camReady || busyVoice || submit.isPending || capturingText}
+            onPress={() => { setVisionOn((v) => !v); setObservation(''); setVisionStatus('idle'); }}
+            style={{ flexDirection: ROW, alignItems: 'center', gap: 10, opacity: camReady ? 1 : 0.5 }}
+            accessibilityRole="switch" accessibilityState={{ checked: visionOn, disabled: !camReady }}>
+            <Feather name={visionOn ? 'toggle-right' : 'toggle-left'} size={26} color={visionOn ? c.amber : c.mutedForeground} />
+            <View style={{ flex: 1 }}>
+              <T w="semibold" size={13}>أرسل صورة ثابتة واحدة مع كل إجابة</T>
+              <T size={11} color={c.mutedForeground} style={{ lineHeight: 17 }}>
+                {camReady ? 'عند التفعيل تُلتقط لقطة واحدة لحظة الإرسال وتُرسل مع إجابتك إلى خدمة الذكاء الاصطناعي لملاحظة ما يظهر من مواد متعلقة بالعمل فقط. لا فيديو مستمر، ولا تقييم للوجه أو المظهر، ولا تُرسل للمحاور المرئي، ولا يحتفظ التطبيق بالصور. الدرجات لا تعتمد على الكاميرا.' : 'شغّل الكاميرا أولًا لتفعيل هذا الخيار. الكاميرا محلية فقط ما دام الخيار مطفأ.'}
+              </T>
+            </View>
+          </Pressable>
+          {visionOn || visionStatus === 'error' ? (
+            <T testID="vision-status" size={11} w="semibold" color={visionStatus === 'error' ? c.danger : c.amber} style={{ marginTop: 6 }}>
+              {visionStatus === 'capturing' ? 'نلتقط الصورة…' : visionStatus === 'sent' ? 'أُرسلت لقطة واحدة مع آخر إجابة.' : visionStatus === 'error' ? 'فشل التقاط الصورة — لم تُرسل الإجابة.' : 'مفعّل: ستُرسل لقطة واحدة مع الإجابة التالية.'}
+            </T>
+          ) : null}
+          {observation ? (
+            <View testID="vision-observation" style={[st.transcript, { backgroundColor: c.amberSoft, marginTop: 8 }]}>
+              <T size={11} w="bold" color={c.foreground}>ملاحظة من اللقطة (مؤقتة، لا تؤثر على الدرجة)</T>
+              <T size={12} align={isEn ? 'left' : 'right'} style={{ lineHeight: 19 }}>{observation}</T>
+            </View>
+          ) : null}
         </View>
 
         {/* answer */}
@@ -551,7 +624,7 @@ export default function SessionScreen() {
             </View>
             <View style={{ flexDirection: ROW, justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
               <T size={11} color={c.mutedForeground}>{draft.length}/5000 · المسودة محفوظة</T>
-              <Btn testID="submit-answer" label="إرسال" icon="send" loading={submit.isPending} disabled={!draft.trim()} onPress={submitText} />
+              <Btn testID="submit-answer" label="إرسال" icon="send" loading={submit.isPending || capturingText} disabled={!draft.trim()} onPress={() => void submitText()} />
             </View>
             {textErr ? <T size={12} color={c.danger} style={{ marginTop: 8 }}>{textErr}</T> : null}
           </View>
@@ -580,6 +653,7 @@ const st = StyleSheet.create({
   pip: { position: 'absolute', bottom: 12, left: 12 },
   stage: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   mic: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+  vision: { marginTop: 16, borderWidth: 1, borderRadius: 14, padding: 12 },
   transcript: { alignSelf: 'stretch', borderRadius: 12, padding: 12, gap: 4 },
   textBox: { borderWidth: 1, padding: 14, borderTopLeftRadius: 16, borderTopRightRadius: 4, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 },
 });

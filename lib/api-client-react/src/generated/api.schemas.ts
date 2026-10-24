@@ -128,6 +128,16 @@ export const InterviewInputTrack = {
   industrial: 'industrial',
   mechanical: 'mechanical',
   electrical: 'electrical',
+  electrical_technology: 'electrical_technology',
+  electrical_trades: 'electrical_trades',
+  electronics: 'electronics',
+  automation: 'automation',
+  hvac: 'hvac',
+  automotive: 'automotive',
+  energy: 'energy',
+  occupational_safety: 'occupational_safety',
+  oil_gas: 'oil_gas',
+  agriculture: 'agriculture',
   civil: 'civil',
   healthcare: 'healthcare',
   education: 'education',
@@ -168,18 +178,6 @@ export const InterviewInputMode = {
   voice: 'voice',
 } as const;
 
-export type InterviewInputQuestionCount = typeof InterviewInputQuestionCount[keyof typeof InterviewInputQuestionCount];
-
-
-export const InterviewInputQuestionCount = {
-  NUMBER_15: 15,
-  NUMBER_16: 16,
-  NUMBER_17: 17,
-  NUMBER_18: 18,
-  NUMBER_19: 19,
-  NUMBER_20: 20,
-} as const;
-
 export interface InterviewInput {
   /**
      * @minLength 2
@@ -190,8 +188,19 @@ export interface InterviewInput {
   experienceLevel: InterviewInputExperienceLevel;
   language: InterviewInputLanguage;
   mode: InterviewInputMode;
-  questionCount: InterviewInputQuestionCount;
+  /**
+     * @minimum 1
+     * @maximum 20
+     */
+  questionCount: number;
 }
+
+/**
+ * Optional consented JPEG snapshot sent with this answer only. Never persisted by the application.
+ * @maxLength 1000000
+ * @pattern ^data:image/jpeg;base64,[A-Za-z0-9+/]+={0,2}$
+ */
+export type CandidateCameraImage = string;
 
 export interface InterviewAnswerInput {
   /**
@@ -199,6 +208,7 @@ export interface InterviewAnswerInput {
      * @maxLength 5000
      */
   answer: string;
+  candidateImage?: CandidateCameraImage;
 }
 
 export interface InterviewAvatar {
@@ -238,6 +248,7 @@ export interface InterviewAvatarConnection {
 export interface InterviewVoiceInput {
   /** Base64-encoded browser or phone recording. */
   audio: string;
+  candidateImage?: CandidateCameraImage;
   /**
      * The original question being answered; prevents a retried recording from answering a later question.
      * @minimum 1
@@ -266,6 +277,16 @@ export const InterviewSessionTrack = {
   industrial: 'industrial',
   mechanical: 'mechanical',
   electrical: 'electrical',
+  electrical_technology: 'electrical_technology',
+  electrical_trades: 'electrical_trades',
+  electronics: 'electronics',
+  automation: 'automation',
+  hvac: 'hvac',
+  automotive: 'automotive',
+  energy: 'energy',
+  occupational_safety: 'occupational_safety',
+  oil_gas: 'oil_gas',
+  agriculture: 'agriculture',
   civil: 'civil',
   healthcare: 'healthcare',
   education: 'education',
@@ -355,6 +376,8 @@ export interface InterviewDetail {
 }
 
 export interface InterviewAnswerResult {
+  /** Ephemeral neutral observation of a consented snapshot, excluded from scoring and storage. */
+  visualObservation?: string;
   session: InterviewSession;
   turn: InterviewTurn;
   /** @nullable */

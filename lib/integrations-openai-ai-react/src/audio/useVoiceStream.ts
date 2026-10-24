@@ -7,6 +7,8 @@ interface StreamCallbacks {
   onTranscript?: (text: string, full: string) => void;
   /** Return true when an external synchronized video renderer consumes audio. */
   onAudioChunk?: (base64Audio: string) => boolean;
+  /** Server-side visual context derived from an opt-in still snapshot. */
+  onVisualContext?: (text: string) => void;
   onComplete?: (transcript: string) => void;
   onError?: (error: Error) => void;
 }
@@ -15,7 +17,14 @@ type TypedVoiceStreamEvent =
   | { type: "user_transcript"; data: string }
   | { type: "transcript"; data: string }
   | { type: "audio"; data: string }
+  | { type: "visual_context"; data: string }
   | { type: "error"; error: string };
+
+/** Extra JSON fields sent alongside recorded audio (ignored for body-less requests). */
+export interface VoiceRequestMetadata {
+  candidateImage?: string;
+  expectedQuestionNumber?: number;
+}
 
 type DoneEvent = { done: true };
 
@@ -60,6 +69,7 @@ function isVoiceStreamEvent(value: unknown): value is VoiceStreamEvent {
     case "user_transcript":
     case "transcript":
     case "audio":
+    case "visual_context":
       return typeof record.data === "string";
     case "error":
       return typeof record.error === "string";
@@ -152,6 +162,10 @@ function handleVoiceStreamEvent(
     case "transcript":
       state.fullTranscript += event.data;
       callbacks.onTranscript?.(event.data, state.fullTranscript);
+      return;
+
+    case "visual_context":
+      callbacks.onVisualContext?.(event.data);
       return;
 
     case "audio":
@@ -251,7 +265,7 @@ export function useVoiceStream({ workletPath, ...callbacks }: StreamCallbacks) {
   }, []);
 
   const streamVoiceResponse = useCallback(
-    async (url: string, audioBlob?: Blob): Promise<void> => {
+    async (url: string, audioBlob?: Blob, metadata?: VoiceRequestMetadata): Promise<void> => {
       activeRequestRef.current?.abort();
 
       const abortController = new AbortController();
@@ -305,7 +319,7 @@ export function useVoiceStream({ workletPath, ...callbacks }: StreamCallbacks) {
             "Content-Type": "application/json",
             Accept: "text/event-stream",
           },
-          body: base64Audio === undefined ? undefined : JSON.stringify({ audio: base64Audio }),
+          body: base64Audio === undefined ? undefined : JSON.stringify({ ...(metadata ?? {}), audio: base64Audio }),
           signal: abortController.signal,
         });
         throwIfNotCurrent();

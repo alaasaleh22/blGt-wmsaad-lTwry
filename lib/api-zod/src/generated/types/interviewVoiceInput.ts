@@ -5,10 +5,12 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { CandidateCameraImage } from './candidateCameraImage';
 
 export interface InterviewVoiceInput {
   /** Base64-encoded browser or phone recording. */
   audio: string;
+  candidateImage?: CandidateCameraImage;
   /**
      * The original question being answered; prevents a retried recording from answering a later question.
      * @minimum 1
