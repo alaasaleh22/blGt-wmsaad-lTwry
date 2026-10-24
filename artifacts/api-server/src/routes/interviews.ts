@@ -33,9 +33,9 @@ const router: IRouter = Router();
 const evaluationSchema = z.object({
   overallScore: z.number().int().min(0).max(100),
   summary: z.string().min(1),
-  strengths: z.array(z.string()).min(1).max(5),
-  improvements: z.array(z.string()).min(1).max(5),
-  nextSteps: z.array(z.string()).min(1).max(5),
+  strengths: z.array(z.string()),
+  improvements: z.array(z.string()),
+  nextSteps: z.array(z.string()),
 });
 
 const questionSchema = z.object({
@@ -45,8 +45,8 @@ const questionSchema = z.object({
 const answerAnalysisSchema = z.object({
   score: z.number().int().min(0).max(100),
   feedback: z.string().min(1).max(3000),
-  strengths: z.array(z.string()).max(5),
-  improvements: z.array(z.string()).max(5),
+  strengths: z.array(z.string()),
+  improvements: z.array(z.string()),
   nextQuestion: z.string().min(8).max(1200).nullable(),
   evaluation: evaluationSchema.nullable(),
 });

@@ -2,7 +2,7 @@
  * React hook for voice recording using MediaRecorder API.
  * Negotiates a supported MIME type across browsers (Chrome, Firefox, Safari).
  */
-import { useRef, useCallback, useState } from "react";
+import { useRef, useCallback, useState, useEffect } from "react";
 
 export type RecordingState = "idle" | "recording" | "stopped";
 
@@ -27,9 +27,39 @@ export function useVoiceRecorder() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const mimeTypeRef = useRef<string | undefined>(undefined);
+  const generationRef = useRef(0);
+
+  const releaseRecorder = useCallback(() => {
+    generationRef.current += 1;
+    const recorder = mediaRecorderRef.current;
+    if (recorder) {
+      recorder.onstop = null;
+      recorder.ondataavailable = null;
+      if (recorder.state !== "inactive") recorder.stop();
+      recorder.stream.getTracks().forEach((track) => track.stop());
+      mediaRecorderRef.current = null;
+    }
+    chunksRef.current = [];
+  }, []);
+
+  useEffect(() => releaseRecorder, [releaseRecorder]);
+
+  const cancelRecording = useCallback(() => {
+    releaseRecorder();
+    setState("idle");
+  }, [releaseRecorder]);
 
   const startRecording = useCallback(async (): Promise<void> => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      throw new Error("Audio recording is not supported in this browser.");
+    }
+    const generation = ++generationRef.current;
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (generation !== generationRef.current) {
+      stream.getTracks().forEach((track) => track.stop());
+      return;
+    }
+    try {
     const mimeType = getSupportedMimeType();
     mimeTypeRef.current = mimeType;
 
@@ -46,6 +76,11 @@ export function useVoiceRecorder() {
 
     recorder.start(100);
     setState("recording");
+    } catch (error) {
+      stream.getTracks().forEach((track) => track.stop());
+      mediaRecorderRef.current = null;
+      throw error;
+    }
   }, []);
 
   const stopRecording = useCallback((): Promise<Blob> => {
@@ -68,5 +103,5 @@ export function useVoiceRecorder() {
     });
   }, []);
 
-  return { state, startRecording, stopRecording };
+  return { state, startRecording, stopRecording, cancelRecording };
 }

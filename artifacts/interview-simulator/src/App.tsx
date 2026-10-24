@@ -138,6 +138,8 @@ function Session({ id }: { id: string }) {
   const [answer, setAnswer] = useState('');
   const [voiceError, setVoiceError] = useState('');
   const [voiceStatus, setVoiceStatus] = useState('');
+  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
+  const [isStartingRecording, setIsStartingRecording] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [recordingFailed, setRecordingFailed] = useState(false);
   const recorder = useVoiceRecorder();
@@ -176,7 +178,7 @@ function Session({ id }: { id: string }) {
     void queryClient.invalidateQueries({ queryKey: getGetInterviewQueryKey(id) });
   };
   const sendTextAnswer = () => {
-    if (!answer.trim() || !session) return;
+    if (!answer.trim() || !session || isVoiceProcessing || isStartingRecording || recorder.state === 'recording' || submitAnswer.isPending || finishInterview.isPending) return;
     submitAnswer.mutate({ id, data: { answer: answer.trim() } }, {
       onSuccess: (result) => {
         const current = queryClient.getQueryData<InterviewDetail>(getGetInterviewQueryKey(id));
@@ -190,24 +192,32 @@ function Session({ id }: { id: string }) {
   };
   const onFinish = () => finishInterview.mutate({ id }, { onSuccess: updateDetail });
   const beginRecording = async () => {
+    if (isVoiceProcessing || isStartingRecording || submitAnswer.isPending || finishInterview.isPending) return;
+    setIsStartingRecording(true);
+    setVoiceStatus('');
     setVoiceError(''); setRecordingFailed(false); setVoiceTranscript('');
     try {
       await recorder.startRecording();
-      setVoiceStatus(isEnglish ? 'Listening…' : 'جارٍ الاستماع…');
     } catch {
       setRecordingFailed(true);
       setVoiceError(isEnglish ? 'Microphone permission was denied or unavailable.' : 'تعذّر الوصول إلى الميكروفون. تحقق من الأذونات أو استخدم الكتابة.');
+    } finally {
+      setIsStartingRecording(false);
     }
   };
   const endRecording = async () => {
+    if (isVoiceProcessing || recorder.state !== 'recording') return;
+    setIsVoiceProcessing(true);
     try {
       const blob = await recorder.stopRecording();
       if (!blob.size) throw new Error(isEnglish ? 'No audio was recorded.' : 'لم يتم تسجيل صوت.');
       setVoiceStatus(isEnglish ? 'Transcribing and preparing feedback…' : 'جارٍ تحويل الصوت وتجهيز الملاحظات…');
       await stream.streamVoiceResponse(`/api/interviews/${encodeURIComponent(id)}/voice-turn`, blob);
     } catch (error) {
-      setVoiceStatus('');
       setVoiceError(error instanceof Error ? error.message : (isEnglish ? 'Voice request failed.' : 'تعذّر إرسال التسجيل.'));
+    } finally {
+      setIsVoiceProcessing(false);
+      setVoiceStatus('');
     }
   };
 
@@ -222,11 +232,11 @@ function Session({ id }: { id: string }) {
   const progress = Math.min(100, ((session.turnNumber - 1) / session.questionCount) * 100);
   const questionOrdinal = Math.min(session.turnNumber, session.questionCount);
   const direction = isEnglish ? 'ltr' : 'rtl';
-  const mutationPending = submitAnswer.isPending || finishInterview.isPending || !!voiceStatus;
+  const mutationPending = submitAnswer.isPending || finishInterview.isPending || isVoiceProcessing || isStartingRecording || recorder.state === 'recording';
 
   return <div className="app-shell session-page" dir={direction}>
     <Header />
-    <div className="session-top"><Link href="/" className="back-link" data-testid="link-session-home">{isEnglish ? <ArrowLeft size={16} /> : <ArrowUpRight size={16} />}{copy.home}</Link><button className="quiet-btn" onClick={onFinish} disabled={finishInterview.isPending || !detail.turns.some((turn) => turn.answer !== null)} data-testid="button-finish-interview">{finishInterview.isPending ? '…' : copy.finish}</button></div>
+    <div className="session-top"><Link href="/" className="back-link" data-testid="link-session-home">{isEnglish ? <ArrowLeft size={16} /> : <ArrowUpRight size={16} />}{copy.home}</Link><button className="quiet-btn" onClick={onFinish} disabled={mutationPending || !detail.turns.some((turn) => turn.answer !== null)} data-testid="button-finish-interview">{finishInterview.isPending ? '…' : copy.finish}</button></div>
     <div className="session-title"><div><div className="eyebrow" data-testid="text-session-track">{isEnglish ? session.track : trackLabels[session.track]}</div><h1 data-testid="text-session-role">{session.roleTitle}</h1></div><div className="session-tags"><span className="tag" data-testid="status-session-active">{isEnglish ? 'In progress' : 'قيد التدريب'}</span><span className="tag" data-testid="text-session-level">{isEnglish ? session.experienceLevel : experienceLabels[session.experienceLevel]}</span></div></div>
     <main className="session-content">
       <div>
@@ -235,16 +245,17 @@ function Session({ id }: { id: string }) {
           <h2 data-testid="text-current-question">{currentQuestion || (isEnglish ? 'Your next question is being prepared…' : 'يجري إعداد السؤال التالي…')}</h2>
           <p className="coach-hint" data-testid="text-answer-hint">{copy.hint}</p>
           {session.mode === 'voice' && <section className="voice-box" data-testid="panel-voice-practice">
-            <div className="voice-head"><strong>{copy.voice}</strong><span className="voice-status" data-testid="status-voice">{recorder.state === 'recording' ? <><i className="status-dot live" />{isEnglish ? 'Recording' : 'يسجّل الآن'}</> : voiceStatus ? <><i className="status-dot" />{voiceStatus}</> : <><i className="status-dot" />{copy.permission}</>}</span></div>
+            <div className="voice-head"><strong>{copy.voice}</strong><span className="voice-status" aria-live="polite" data-testid="status-voice">{recorder.state === 'recording' ? <><i className="status-dot live" />{isEnglish ? 'Recording' : 'يسجّل الآن'}</> : isStartingRecording ? (isEnglish ? 'Requesting microphone access…' : 'جارٍ طلب إذن الميكروفون…') : voiceStatus ? <><i className="status-dot" />{voiceStatus}</> : <><i className="status-dot" />{copy.permission}</>}</span></div>
             <div className="voice-controls">{recorder.state === 'recording'
-              ? <button className="record-btn recording" onClick={() => void endRecording()} disabled={!!voiceStatus} data-testid="button-stop-recording"><MicOff size={16} />{copy.stop}</button>
-              : <button className="record-btn" onClick={() => void beginRecording()} disabled={!!voiceStatus || submitAnswer.isPending} data-testid="button-start-recording"><Mic size={16} />{copy.start}</button>}
+              ? <><button className="record-btn recording" onClick={() => void endRecording()} disabled={isVoiceProcessing} data-testid="button-stop-recording"><MicOff size={16} />{copy.stop}</button><button className="quiet-btn" onClick={() => { recorder.cancelRecording(); setVoiceStatus(''); }} disabled={isVoiceProcessing} data-testid="button-cancel-recording">{isEnglish ? 'Cancel recording' : 'إلغاء التسجيل'}</button></>
+              : <button className="record-btn" onClick={() => void beginRecording()} disabled={mutationPending} data-testid="button-start-recording"><Mic size={16} />{copy.start}</button>}
               <span className="subtle"><Volume2 size={14} style={{ verticalAlign: 'middle' }} /> {copy.fallback}</span>
             </div>
             {voiceTranscript && <p className="voice-transcript" data-testid="text-voice-transcript">{voiceTranscript}</p>}
             {(voiceError || recordingFailed) && <p className="voice-transcript" role="alert" data-testid="error-voice">{voiceError || copy.fallback}</p>}
           </section>}
           <div className="field" style={{ marginTop: 22 }}><label htmlFor="answer">{copy.answer}</label><textarea id="answer" className="answer-box" maxLength={5000} value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder={copy.placeholder} data-testid="input-answer" /></div>
+          {recorder.state === 'recording' && <p className="subtle" data-testid="text-recording-hint">{isEnglish ? 'Stop and send your recording, or cancel it to submit a written answer.' : 'أوقف التسجيل لإرساله، أو ألغِه لإرسال إجابة مكتوبة.'}</p>}
           {submitAnswer.isError && <p className="voice-transcript" role="alert" data-testid="error-submit-answer">{isEnglish ? 'Your answer was not submitted. Please try again.' : 'لم تُرسل إجابتك. حاول مرة أخرى.'}</p>}
           <div className="answer-toolbar"><span className="subtle" data-testid="text-answer-counter">{answer.length} / 5000</span><div className="answer-actions"><button className="primary-btn" onClick={sendTextAnswer} disabled={!answer.trim() || mutationPending} data-testid="button-submit-answer">{submitAnswer.isPending ? copy.submitting : <>{copy.send} <Send size={15} /></>}</button></div></div>
         </section>
