@@ -1,3 +1,4 @@
 - [Emergency-report safety](emergency-report-safety.md) — do not imply a report is monitored or dispatched unless a real response operation exists.
 - [Preview JSX generics](preview-jsx-generics.md) — explicit JSX type arguments can pass production builds but fail the instrumented development preview.
 - [Audio streaming safeguards](audio-stream-events.md) — guard empty stream events and bound playback initialization so audio setup cannot block answer uploads.
+- [Realistic interviewer scope](realistic-interviewer-scope.md) — “شخص مقابلي” means a human-presenting interactive video interviewer, not only self-view or a voice indicator.

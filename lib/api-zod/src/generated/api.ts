@@ -104,11 +104,11 @@ export const createInterviewBodyRoleTitleMax = 120;
 
 export const CreateInterviewBody = zod.object({
   "roleTitle": zod.string().min(createInterviewBodyRoleTitleMin).max(createInterviewBodyRoleTitleMax),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),
-  "questionCount": zod.union([zod.literal(3),zod.literal(5)])
+  "questionCount": zod.union([zod.literal(15),zod.literal(16),zod.literal(17),zod.literal(18),zod.literal(19),zod.literal(20)])
 })
 
 export const createInterviewResponseSessionEvaluationOneOverallScoreMin = 0;
@@ -120,7 +120,7 @@ export const CreateInterviewResponse = zod.object({
   "session": zod.object({
   "id": zod.string().uuid(),
   "roleTitle": zod.string(),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),
@@ -170,7 +170,7 @@ export const GetInterviewResponse = zod.object({
   "session": zod.object({
   "id": zod.string().uuid(),
   "roleTitle": zod.string(),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),
@@ -231,7 +231,7 @@ export const SubmitInterviewAnswerResponse = zod.object({
   "session": zod.object({
   "id": zod.string().uuid(),
   "roleTitle": zod.string(),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),
@@ -304,7 +304,7 @@ export const FinishInterviewResponse = zod.object({
   "session": zod.object({
   "id": zod.string().uuid(),
   "roleTitle": zod.string(),
-  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'other']),
+  "track": zod.enum(['software', 'industrial', 'mechanical', 'electrical', 'civil', 'healthcare', 'education', 'business', 'finance', 'sales', 'hospitality', 'logistics', 'skilled_trades', 'legal', 'media', 'science', 'other']),
   "experienceLevel": zod.enum(['junior', 'mid', 'senior']),
   "language": zod.enum(['ar', 'en']),
   "mode": zod.enum(['text', 'voice']),

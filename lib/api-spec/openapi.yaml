@@ -13,7 +13,7 @@ tags:
   - name: reports
     description: Emergency incident reports and assistance requests
   - name: interviews
-    description: Interactive technical and engineering interview practice
+    description: Interactive interview practice across professional and vocational fields
 paths:
   /healthz:
     get:
@@ -347,7 +347,7 @@ components:
           maxLength: 120
         track:
           type: string
-          enum: [software, industrial, mechanical, electrical, civil, other]
+          enum: [software, industrial, mechanical, electrical, civil, healthcare, education, business, finance, sales, hospitality, logistics, skilled_trades, legal, media, science, other]
         experienceLevel:
           type: string
           enum: [junior, mid, senior]
@@ -359,7 +359,7 @@ components:
           enum: [text, voice]
         questionCount:
           type: integer
-          enum: [3, 5]
+          enum: [15, 16, 17, 18, 19, 20]
       required: [roleTitle, track, experienceLevel, language, mode, questionCount]
     InterviewAnswerInput:
       type: object
@@ -408,7 +408,7 @@ components:
           type: string
         track:
           type: string
-          enum: [software, industrial, mechanical, electrical, civil, other]
+          enum: [software, industrial, mechanical, electrical, civil, healthcare, education, business, finance, sales, hospitality, logistics, skilled_trades, legal, media, science, other]
         experienceLevel:
           type: string
           enum: [junior, mid, senior]

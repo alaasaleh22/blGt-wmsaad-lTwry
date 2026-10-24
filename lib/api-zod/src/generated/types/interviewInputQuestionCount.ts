@@ -10,6 +10,10 @@ export type InterviewInputQuestionCount = typeof InterviewInputQuestionCount[key
 
 
 export const InterviewInputQuestionCount = {
-  NUMBER_3: 3,
-  NUMBER_5: 5,
+  NUMBER_15: 15,
+  NUMBER_16: 16,
+  NUMBER_17: 17,
+  NUMBER_18: 18,
+  NUMBER_19: 19,
+  NUMBER_20: 20,
 } as const;

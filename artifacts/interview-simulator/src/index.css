@@ -512,3 +512,30 @@ button { cursor: pointer; }
  .choice-options { gap:6px; }
  .choice span { font-size:12px;padding:9px 5px; }
 }
+.job-chips { display:flex;flex-wrap:wrap;gap:6px;margin-top:4px; }
+.job-chip { border:1px solid #d7d1c4;background:#f7f4ec;color:#55706e;border-radius:999px;padding:6px 11px;font-size:12px;transition:background .18s,border-color .18s; }
+.job-chip:hover { border-color:#6e9d88; }
+.job-chip.on { background:#e4eee8;border-color:#377967;color:#276d5b; }
+.stage-pill { display:inline-block;margin-top:18px;background:#e4eee8;color:#276d5b;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700; }
+.room { margin-top:20px;border:1px solid #2e4a52;background:#20343d;color:#eef0e8;border-radius:5px 20px 5px 5px;padding:16px; }
+.room-stage-label { font-family:'Space Mono','IBM Plex Sans Arabic',monospace;font-size:11px;color:#86bca3;letter-spacing:.06em;margin-bottom:12px; }
+.room-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px; }
+.ai-tile,.cam-tile { background:#2a434c;border-radius:4px 14px 4px 4px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0; }
+.tile-label { font-size:12px;font-weight:700;color:#c9d6cf; }
+.ai-core { aspect-ratio:4/3;border-radius:10px;background:radial-gradient(circle at 50% 45%,#35575f,#1c2f36);display:grid;place-items:center;align-content:center;gap:14px; }
+.ai-mark { width:58px;height:58px;border-radius:18px;background:#86bca3;color:#20343d;display:grid;place-items:center;font-size:24px;font-weight:700; }
+.wave { display:flex;gap:4px;align-items:center;height:28px; }
+.wave span { width:4px;height:28px;border-radius:3px;background:#86bca3;transform:scaleY(.18);opacity:.6; }
+.phase-speaking .wave span { animation:wave .9s ease-in-out infinite;opacity:1; }
+.phase-listening .wave span { background:#e09a80;animation:wave 1.3s ease-in-out infinite;opacity:.9; }
+.phase-processing .wave span { animation:pulse 1.2s ease-in-out infinite; }
+.ai-status { margin:0;font-size:13px;color:#eef0e8; }
+.ai-note,.cam-privacy { margin:0;font-size:11px;color:#a8b8b2;line-height:1.6; }
+.cam-frame { aspect-ratio:4/3;border-radius:10px;background:#1c2f36;overflow:hidden;display:grid;place-items:center; }
+.cam-video { width:100%;height:100%;object-fit:cover;transform:scaleX(-1); }
+.cam-off { display:flex;flex-direction:column;align-items:center;gap:8px;color:#8fa29c;font-size:12px; }
+.cam-actions .record-btn { width:100%;justify-content:center; }
+.cam-error { margin:0;font-size:12px;color:#f2c3b2;line-height:1.6; }
+@keyframes wave { 0%,100% { transform:scaleY(.2); } 50% { transform:scaleY(1); } }
+@media (max-width:580px) { .room-grid { grid-template-columns:1fr; } .ai-core { aspect-ratio:16/9; } }
+@media (prefers-reduced-motion:reduce) { .wave span,.status-dot.live,.skeleton { animation:none !important; } .phase-speaking .wave span,.phase-listening .wave span { transform:scaleY(.7); } * { transition:none !important; } }

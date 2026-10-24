@@ -129,6 +129,17 @@ export const InterviewInputTrack = {
   mechanical: 'mechanical',
   electrical: 'electrical',
   civil: 'civil',
+  healthcare: 'healthcare',
+  education: 'education',
+  business: 'business',
+  finance: 'finance',
+  sales: 'sales',
+  hospitality: 'hospitality',
+  logistics: 'logistics',
+  skilled_trades: 'skilled_trades',
+  legal: 'legal',
+  media: 'media',
+  science: 'science',
   other: 'other',
 } as const;
 
@@ -161,8 +172,12 @@ export type InterviewInputQuestionCount = typeof InterviewInputQuestionCount[key
 
 
 export const InterviewInputQuestionCount = {
-  NUMBER_3: 3,
-  NUMBER_5: 5,
+  NUMBER_15: 15,
+  NUMBER_16: 16,
+  NUMBER_17: 17,
+  NUMBER_18: 18,
+  NUMBER_19: 19,
+  NUMBER_20: 20,
 } as const;
 
 export interface InterviewInput {
@@ -212,6 +227,17 @@ export const InterviewSessionTrack = {
   mechanical: 'mechanical',
   electrical: 'electrical',
   civil: 'civil',
+  healthcare: 'healthcare',
+  education: 'education',
+  business: 'business',
+  finance: 'finance',
+  sales: 'sales',
+  hospitality: 'hospitality',
+  logistics: 'logistics',
+  skilled_trades: 'skilled_trades',
+  legal: 'legal',
+  media: 'media',
+  science: 'science',
   other: 'other',
 } as const;
 

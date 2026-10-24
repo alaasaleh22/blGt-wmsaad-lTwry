@@ -8,15 +8,13 @@ import { ArrowLeft, ArrowUpLeft, ArrowUpRight, Check, CircleHelp, Clock3, Mic, M
 import { Link, Route, Switch, useLocation, useParams, Router as WouterRouter } from 'wouter';
 import { getGetInterviewQueryKey, useCreateInterview, useFinishInterview, useGetInterview, useSubmitInterviewAnswer } from '@workspace/api-client-react';
 import type { InterviewDetail, InterviewEvaluation, InterviewInput, InterviewSession, InterviewTurn } from '@workspace/api-client-react';
+import { InterviewRoom } from '@/components/interview-room';
+import { professionCatalog, trackLabels, findTrackForJob, stageFor, stageLabels } from '@/lib/professions';
 import { useVoiceRecorder, useVoiceStream } from '@workspace/integrations-openai-ai-react/audio';
 
 const LAST_SESSION_KEY = 'interview-simulator:last-session';
 const queryClient = new QueryClient();
 
-const trackLabels: Record<InterviewInput['track'], string> = {
-  software: 'هندسة البرمجيات', industrial: 'الهندسة الصناعية', mechanical: 'الهندسة الميكانيكية',
-  electrical: 'الهندسة الكهربائية', civil: 'الهندسة المدنية', other: 'تخصص آخر',
-};
 const experienceLabels: Record<InterviewInput['experienceLevel'], string> = {
   junior: 'مبتدئ', mid: 'متوسط الخبرة', senior: 'خبير',
 };
@@ -50,8 +48,8 @@ function Home() {
   const [track, setTrack] = useState<InterviewInput['track']>('software');
   const [experienceLevel, setExperienceLevel] = useState<InterviewInput['experienceLevel']>('mid');
   const [language, setLanguage] = useState<InterviewInput['language']>('ar');
-  const [mode, setMode] = useState<InterviewInput['mode']>('text');
-  const [questionCount, setQuestionCount] = useState<3 | 5>(5);
+  const [mode, setMode] = useState<InterviewInput['mode']>('voice');
+  const [questionCount, setQuestionCount] = useState<InterviewInput['questionCount']>(20);
 
   const onCreate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -75,9 +73,9 @@ function Home() {
     <main className="home-wrap" dir="rtl">
       <section className="home-hero">
         <div>
-          <div className="eyebrow" data-testid="text-home-eyebrow">مختبر المقابلات التقنية</div>
+          <div className="eyebrow" data-testid="text-home-eyebrow">مختبر المقابلات لكل المهن</div>
           <h1 data-testid="text-home-heading">المقابلة القادمة؟<br /><span style={{ color: '#367a68' }}>ابدأها هنا.</span></h1>
-          <p data-testid="text-home-description">تدرّب على أسئلة واقعية تتكيّف مع إجاباتك. اختر تخصصك وطريقة التدريب، ثم احصل على ملاحظات واضحة تساعدك على التقدّم.</p>
+          <p data-testid="text-home-description">تدرّب على أسئلة واقعية تتكيّف مع إجاباتك. من التمريض والتعليم إلى الهندسة والمبيعات والحِرف — اختر مهنتك، وتدرّب في مقابلة افتراضية كاملة من ١٥ إلى ٢٠ سؤالاً، ثم احصل على ملاحظات واضحة تساعدك على التقدّم.</p>
         </div>
         <aside className="hero-note" data-testid="card-practice-note"><small>محاكاة واقعية · ملاحظات عملية</small><strong dir="ltr">PRACTICE / REFLECT</strong><small>رابط العودة إلى جلستك محفوظ على هذا الجهاز.</small></aside>
       </section>
@@ -85,7 +83,8 @@ function Home() {
         <form className="panel form-panel" onSubmit={onCreate} data-testid="form-create-session">
           <div className="panel-heading"><div><h2 data-testid="text-form-heading">جهّز جلستك</h2><p>خصص المقابلة لتناسب الدور الذي تستهدفه.</p></div><span className="step-tag">01 / 04</span></div>
           <div className="form-grid">
-            <div className="field" style={{ gridColumn: '1 / -1' }}><label htmlFor="roleTitle">المسمّى الوظيفي</label><input id="roleTitle" required minLength={2} maxLength={120} value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} placeholder="مثال: مهندس برمجيات أول" data-testid="input-role-title" /></div>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><label htmlFor="roleTitle">المسمّى الوظيفي</label><input id="roleTitle" required minLength={2} maxLength={120} value={roleTitle} list="job-suggestions" onChange={(e) => { const v = e.target.value; setRoleTitle(v); const t = findTrackForJob(v); if (t) setTrack(t); }} placeholder="اكتب مهنتك أو اختر من الاقتراحات" data-testid="input-role-title" /><datalist id="job-suggestions">{professionCatalog.flatMap((c) => c.jobs.map((j) => <option key={`${c.key}-${j}`} value={j}>{c.label}</option>))}</datalist>
+              <div className="job-chips" data-testid="list-job-suggestions">{(professionCatalog.find((c) => c.key === track)?.jobs ?? []).map((j) => <button type="button" key={j} className={`job-chip${roleTitle === j ? ' on' : ''}`} onClick={() => setRoleTitle(j)} data-testid={`button-job-${j}`}>{j}</button>)}</div></div>
             <div className="field"><label htmlFor="track">المسار المهني</label><select id="track" value={track} onChange={(e) => setTrack(e.target.value as InterviewInput['track'])} data-testid="select-track">{Object.entries(trackLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div>
             <div className="field"><label htmlFor="experience">مستوى الخبرة</label><select id="experience" value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value as InterviewInput['experienceLevel'])} data-testid="select-experience">{Object.entries(experienceLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div>
           </div>
@@ -95,13 +94,10 @@ function Home() {
               <RadioChoice name="language" value="en" selected={language} label="English" onChange={(value) => setLanguage(value as InterviewInput['language'])} testId="language-en" />
             </div></fieldset>
             <fieldset className="choice-set"><legend className="group-label">طريقة التدريب</legend><div className="choice-options">
+              <RadioChoice name="mode" value="voice" selected={mode} label="صوت مع كاميرا اختيارية" onChange={(value) => setMode(value as InterviewInput['mode'])} testId="mode-voice" />
               <RadioChoice name="mode" value="text" selected={mode} label="كتابي" onChange={(value) => setMode(value as InterviewInput['mode'])} testId="mode-text" />
-              <RadioChoice name="mode" value="voice" selected={mode} label="صوتي" onChange={(value) => setMode(value as InterviewInput['mode'])} testId="mode-voice" />
             </div></fieldset>
-            <fieldset className="choice-set"><legend className="group-label">عدد الأسئلة</legend><div className="choice-options">
-              <RadioChoice name="count" value={3} selected={questionCount} label="٣ أسئلة · سريعة" onChange={(value) => setQuestionCount(value as 3 | 5)} testId="count-3" />
-              <RadioChoice name="count" value={5} selected={questionCount} label="٥ أسئلة · كاملة" onChange={(value) => setQuestionCount(value as 3 | 5)} testId="count-5" />
-            </div></fieldset>
+            <div className="field"><label htmlFor="questionCount">عدد الأسئلة</label><select id="questionCount" value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value) as InterviewInput['questionCount'])} data-testid="select-question-count">{[15, 16, 17, 18, 19, 20].map((n) => <option key={n} value={n}>{n} سؤالاً{n === 20 ? ' · مقابلة كاملة' : ''}</option>)}</select></div>
           </div>
           {createInterview.isError && <div role="alert" className="voice-transcript" data-testid="error-create-session">تعذّر بدء الجلسة. تحقق من الاتصال وحاول مرة أخرى.</div>}
           <div className="submit-row"><span className="subtle" data-testid="text-session-privacy">جلسة خاصة · يمكنك العودة إليها لاحقاً</span>
@@ -231,19 +227,23 @@ function Session({ id }: { id: string }) {
   const currentQuestion = session.currentQuestion ?? currentTurn?.question ?? '';
   const progress = Math.min(100, ((session.turnNumber - 1) / session.questionCount) * 100);
   const questionOrdinal = Math.min(session.turnNumber, session.questionCount);
+  const stage = stageLabels[stageFor(questionOrdinal, session.questionCount)];
+  const roomPhase = recorder.state === 'recording' ? 'listening' : stream.playbackState === 'playing' ? 'speaking' : (isVoiceProcessing || isStartingRecording) ? 'processing' : 'idle';
   const direction = isEnglish ? 'ltr' : 'rtl';
   const mutationPending = submitAnswer.isPending || finishInterview.isPending || isVoiceProcessing || isStartingRecording || recorder.state === 'recording';
 
   return <div className="app-shell session-page" dir={direction}>
     <Header />
     <div className="session-top"><Link href="/" className="back-link" data-testid="link-session-home">{isEnglish ? <ArrowLeft size={16} /> : <ArrowUpRight size={16} />}{copy.home}</Link><button className="quiet-btn" onClick={onFinish} disabled={mutationPending || !detail.turns.some((turn) => turn.answer !== null)} data-testid="button-finish-interview">{finishInterview.isPending ? '…' : copy.finish}</button></div>
-    <div className="session-title"><div><div className="eyebrow" data-testid="text-session-track">{isEnglish ? session.track : trackLabels[session.track]}</div><h1 data-testid="text-session-role">{session.roleTitle}</h1></div><div className="session-tags"><span className="tag" data-testid="status-session-active">{isEnglish ? 'In progress' : 'قيد التدريب'}</span><span className="tag" data-testid="text-session-level">{isEnglish ? session.experienceLevel : experienceLabels[session.experienceLevel]}</span></div></div>
+    <div className="session-title"><div><div className="eyebrow" data-testid="text-session-track">{isEnglish ? session.track : (trackLabels[session.track] ?? session.track)}</div><h1 data-testid="text-session-role">{session.roleTitle}</h1></div><div className="session-tags"><span className="tag" data-testid="status-session-active">{isEnglish ? 'In progress' : 'قيد التدريب'}</span><span className="tag" data-testid="text-session-level">{isEnglish ? session.experienceLevel : experienceLabels[session.experienceLevel]}</span></div></div>
     <main className="session-content">
       <div>
         <section className="panel question-card" data-testid="card-current-question">
           <div className="question-number"><span data-testid="text-question-position">{copy.question} {questionOrdinal} {copy.of} {session.questionCount}</span><div className="progress-track" aria-label={`${progress}%`}><div className="progress-fill" style={{ transform: `scaleX(${progress / 100})` }} /></div></div>
+          <span className="stage-pill" data-testid="text-question-stage">{isEnglish ? stage.en : stage.ar}</span>
           <h2 data-testid="text-current-question">{currentQuestion || (isEnglish ? 'Your next question is being prepared…' : 'يجري إعداد السؤال التالي…')}</h2>
           <p className="coach-hint" data-testid="text-answer-hint">{copy.hint}</p>
+          {session.mode === 'voice' && <InterviewRoom english={isEnglish} phase={roomPhase} stageLabel={isEnglish ? stage.en : stage.ar} active={session.status === 'active'} />}
           {session.mode === 'voice' && <section className="voice-box" data-testid="panel-voice-practice">
             <div className="voice-head"><strong>{copy.voice}</strong><span className="voice-status" aria-live="polite" data-testid="status-voice">{recorder.state === 'recording' ? <><i className="status-dot live" />{isEnglish ? 'Recording' : 'يسجّل الآن'}</> : isStartingRecording ? (isEnglish ? 'Requesting microphone access…' : 'جارٍ طلب إذن الميكروفون…') : voiceStatus ? <><i className="status-dot" />{voiceStatus}</> : <><i className="status-dot" />{copy.permission}</>}</span></div>
             <div className="voice-controls">{recorder.state === 'recording'
